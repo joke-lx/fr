@@ -19,6 +19,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   final ScrollController _scrollController = ScrollController();
   late MessageProvider _messageProvider;
   bool _isTyping = false;
+  bool _isSending = false;  // 添加本地发送状态
 
   @override
   void initState() {
@@ -55,44 +56,58 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Future<void> _handleSend(String content) async {
-    final userProvider = context.read<UserProvider>();
-    final currentUser = userProvider.currentUser!;
-    final sessionProvider = context.read<ChatSessionProvider>();
-
-    // 发送用户消息
-    await _messageProvider.sendMessage(
-      senderId: currentUser.id,
-      receiverId: widget.friend.id,
-      content: content,
-    );
-
-    await sessionProvider.refreshSessions(currentUser.id);
-    await _scrollToBottom();
-
-    // 显示"正在输入"状态
-    setState(() {
-      _isTyping = true;
-    });
-
-    // 模拟延迟后回复
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    // 获取智能回复
-    final response = ChatResponseService.getResponse(content);
-
-    // 发送回复消息
-    await _messageProvider.sendMessage(
-      senderId: widget.friend.id,
-      receiverId: currentUser.id,
-      content: response,
-    );
+    if (_isSending) return;  // 防止重复发送
 
     setState(() {
-      _isTyping = false;
+      _isSending = true;
     });
 
-    await sessionProvider.refreshSessions(currentUser.id);
-    await _scrollToBottom();
+    try {
+      final userProvider = context.read<UserProvider>();
+      final currentUser = userProvider.currentUser!;
+      final sessionProvider = context.read<ChatSessionProvider>();
+
+      // 发送用户消息
+      await _messageProvider.sendMessage(
+        senderId: currentUser.id,
+        receiverId: widget.friend.id,
+        content: content,
+      );
+
+      await sessionProvider.refreshSessions(currentUser.id);
+      await _scrollToBottom();
+
+      // 显示"正在输入"状态
+      setState(() {
+        _isTyping = true;
+      });
+
+      // 模拟延迟后回复
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      // 获取智能回复
+      final response = ChatResponseService.getResponse(content);
+
+      // 发送回复消息
+      await _messageProvider.sendMessage(
+        senderId: widget.friend.id,
+        receiverId: currentUser.id,
+        content: response,
+      );
+
+      setState(() {
+        _isTyping = false;
+      });
+
+      await sessionProvider.refreshSessions(currentUser.id);
+      await _scrollToBottom();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
+    }
   }
 
   Future<void> _handleImageSend(String? imagePath) async {
@@ -184,7 +199,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           Expanded(
             child: Consumer<MessageProvider>(
               builder: (context, messageProvider, child) {
-                final messages = messageProvider.getChatMessages(widget.friend.id);
+                final userProvider = context.read<UserProvider>();
+                final currentUser = userProvider.currentUser!;
+                final messages = messageProvider.getChatMessages(currentUser.id, widget.friend.id);
 
                 if (messages.isEmpty) {
                   return Center(
@@ -263,7 +280,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ChatInputField(
             onSend: _handleSend,
             onImageSend: _handleImageSend,
-            isLoading: _messageProvider.isLoading,
+            isLoading: _isSending,
           ),
         ],
       ),

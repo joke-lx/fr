@@ -6,24 +6,25 @@ import '../services/services.dart';
 class MessageProvider with ChangeNotifier {
   List<Message> _messages = [];
   Map<String, List<Message>> _chatMessages = {};
-  bool _isLoading = false;
 
   List<Message> get messages => _messages;
-  bool get isLoading => _isLoading;
 
-  List<Message> getChatMessages(String friendId) {
-    return _chatMessages[friendId] ?? [];
+  List<Message> getChatMessages(String currentUserId, String friendId) {
+    // 使用统一的聊天key
+    final chatKey = [currentUserId, friendId]..sort();
+    final conversationId = '${chatKey[0]}_${chatKey[1]}';
+    return _chatMessages[conversationId] ?? [];
   }
 
   Future<void> loadChatMessages(String currentUserId, String friendId) async {
-    _isLoading = true;
-    notifyListeners();
+    // 使用统一的聊天key
+    final chatKey = [currentUserId, friendId]..sort();
+    final conversationId = '${chatKey[0]}_${chatKey[1]}';
 
     final chatMessages =
         await MessageService.getMessagesBetweenUsers(currentUserId, friendId);
-    _chatMessages[friendId] = chatMessages;
+    _chatMessages[conversationId] = chatMessages;
 
-    _isLoading = false;
     notifyListeners();
   }
 
@@ -33,8 +34,9 @@ class MessageProvider with ChangeNotifier {
     required String content,
     MessageType type = MessageType.text,
   }) async {
-    _isLoading = true;
-    notifyListeners();
+    // 创建统一的聊天key（使用较小的ID作为key，确保同一对话使用同一个key）
+    final chatKey = [senderId, receiverId]..sort();
+    final conversationId = '${chatKey[0]}_${chatKey[1]}';
 
     try {
       final message = Message(
@@ -48,47 +50,51 @@ class MessageProvider with ChangeNotifier {
       );
 
       // Add to local list immediately
-      if (_chatMessages[receiverId] == null) {
-        _chatMessages[receiverId] = [];
+      if (_chatMessages[conversationId] == null) {
+        _chatMessages[conversationId] = [];
       }
-      _chatMessages[receiverId]!.add(message);
+      _chatMessages[conversationId]!.add(message);
       notifyListeners();
 
       // Simulate sending
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // Update to sent status
       final sentMessage = message.copyWith(status: MessageStatus.sent);
       await MessageService.sendMessage(sentMessage);
 
       // Update local list
-      final index = _chatMessages[receiverId]!.indexWhere((m) => m.id == message.id);
+      final index = _chatMessages[conversationId]!.indexWhere((m) => m.id == message.id);
       if (index != -1) {
-        _chatMessages[receiverId]![index] = sentMessage;
+        _chatMessages[conversationId]![index] = sentMessage;
       }
+
+      notifyListeners();
 
       // Update session
       await ChatSessionService.updateSessionWithMessage(senderId, sentMessage);
       if (senderId != receiverId) {
         await ChatSessionService.updateSessionWithMessage(receiverId, sentMessage);
       }
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    } catch (e) {
+      debugPrint('Send message error: $e');
     }
   }
 
   Future<void> markAsRead(String senderId, String receiverId) async {
     await MessageService.markMessagesAsRead(senderId, receiverId);
 
+    // 使用统一的聊天key
+    final chatKey = [senderId, receiverId]..sort();
+    final conversationId = '${chatKey[0]}_${chatKey[1]}';
+
     // Update local messages
-    final friendId = senderId;
-    if (_chatMessages[friendId] != null) {
-      for (var i = 0; i < _chatMessages[friendId]!.length; i++) {
-        if (_chatMessages[friendId]![i].senderId == senderId &&
-            _chatMessages[friendId]![i].receiverId == receiverId &&
-            !_chatMessages[friendId]![i].isRead) {
-          _chatMessages[friendId]![i] = _chatMessages[friendId]![i].copyWith(
+    if (_chatMessages[conversationId] != null) {
+      for (var i = 0; i < _chatMessages[conversationId]!.length; i++) {
+        if (_chatMessages[conversationId]![i].senderId == senderId &&
+            _chatMessages[conversationId]![i].receiverId == receiverId &&
+            !_chatMessages[conversationId]![i].isRead) {
+          _chatMessages[conversationId]![i] = _chatMessages[conversationId]![i].copyWith(
             status: MessageStatus.read,
             readAt: DateTime.now(),
           );
