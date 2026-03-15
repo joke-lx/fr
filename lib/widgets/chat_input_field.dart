@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 import '../widgets/emoji_picker_widget.dart';
+import '../widgets/message_preview.dart';
 import '../services/media_service.dart';
-import '../services/speech_input_service.dart';
+import '../services/audio_recording_service.dart';
 
 class ChatInputField extends StatefulWidget {
   final Function(String content) onSend;
@@ -32,25 +34,18 @@ class _ChatInputFieldState extends State<ChatInputField> {
   bool _isComposing = false;
   bool _showEmojiPicker = false;
 
-  // 语音输入相关
-  final SpeechInputService _speechService = SpeechInputService();
-  bool _isListening = false;
-  String _speechStatus = '点击说话';
+  // 录音相关
+  final AudioRecordingService _audioService = AudioRecordingService();
+  bool _isRecording = false;
+
+  // 预览相关
+  List<PreviewMessage> _previews = [];
 
   @override
   void initState() {
     super.initState();
     _controller = widget.controller ?? TextEditingController();
     _controller.addListener(_onTextChanged);
-
-    // 初始化语音识别
-    _speechService.initialize().then((available) {
-      if (available && mounted) {
-        setState(() {
-          _speechStatus = '点击说话';
-        });
-      }
-    });
   }
 
   @override
@@ -60,7 +55,7 @@ class _ChatInputFieldState extends State<ChatInputField> {
     } else {
       _controller.removeListener(_onTextChanged);
     }
-    _speechService.dispose();
+    _audioService.cancelRecording();
     super.dispose();
   }
 
@@ -102,6 +97,45 @@ class _ChatInputFieldState extends State<ChatInputField> {
     );
 
     HapticFeedback.lightImpact();
+  }
+
+  // 添加预览
+  void _addPreview(PreviewMessage preview) {
+    setState(() {
+      _previews.add(preview);
+    });
+  }
+
+  // 移除预览
+  void _removePreview(int index) {
+    setState(() {
+      _previews.removeAt(index);
+    });
+  }
+
+  // 清空所有预览
+  void _clearPreviews() {
+    setState(() {
+      _previews.clear();
+    });
+  }
+
+  // 发送预览内容
+  void _sendPreview(int index) {
+    final preview = _previews[index];
+    switch (preview.type) {
+      case PreviewType.text:
+        widget.onSend(preview.content);
+        _controller.text = preview.content;
+        break;
+      case PreviewType.image:
+      case PreviewType.video:
+      case PreviewType.audio:
+      case PreviewType.file:
+        widget.onImageSend?.call(preview.filePath);
+        break;
+    }
+    _removePreview(index);
   }
 
   Future<void> _showAttachmentOptions() async {
@@ -218,35 +252,45 @@ class _ChatInputFieldState extends State<ChatInputField> {
   Future<void> _pickImageFromGallery() async {
     final imagePath = await MediaService.pickImageFromGallery();
     if (imagePath != null) {
-      widget.onImageSend?.call(imagePath);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('图片已选择')),
-        );
-      }
+      _addPreview(PreviewMessage(
+        type: PreviewType.image,
+        content: '图片',
+        filePath: imagePath,
+      ));
     }
   }
 
   Future<void> _takePicture() async {
     final imagePath = await MediaService.takePicture();
     if (imagePath != null) {
-      widget.onImageSend?.call(imagePath);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('照片已拍摄')),
-        );
-      }
+      _addPreview(PreviewMessage(
+        type: PreviewType.image,
+        content: '照片',
+        filePath: imagePath,
+      ));
     }
   }
 
   Future<void> _pickVideo() async {
     final videoPath = await MediaService.pickVideoFromGallery();
     if (videoPath != null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('视频已选择: $videoPath')),
-        );
+      // 获取文件信息
+      String fileName = videoPath.split('/').last;
+      int fileSize = 0;
+      if (!kIsWeb) {
+        final file = File(videoPath);
+        if (file.existsSync()) {
+          fileSize = file.lengthSync();
+        }
       }
+
+      _addPreview(PreviewMessage(
+        type: PreviewType.video,
+        content: '视频',
+        filePath: videoPath,
+        fileName: fileName,
+        fileSize: fileSize,
+      ));
     }
   }
 
@@ -254,61 +298,71 @@ class _ChatInputFieldState extends State<ChatInputField> {
     final result = await MediaService.pickFile();
     if (result != null && result.files.isNotEmpty) {
       final file = result.files.first;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('文件已选择: ${file.name}')),
-        );
+
+      // 如果是图片，作为图片预览
+      if (file.extension?.toLowerCase() == 'png' ||
+          file.extension?.toLowerCase() == 'jpg' ||
+          file.extension?.toLowerCase() == 'jpeg' ||
+          file.extension?.toLowerCase() == 'gif') {
+        if (file.path != null) {
+          _addPreview(PreviewMessage(
+            type: PreviewType.image,
+            content: '图片',
+            filePath: file.path,
+            fileName: file.name,
+            fileSize: file.size,
+          ));
+        }
+      } else {
+        // 其他文件
+        _addPreview(PreviewMessage(
+          type: PreviewType.file,
+          content: '文件',
+          filePath: file.path,
+          fileName: file.name,
+          fileSize: file.size,
+        ));
       }
     }
   }
 
-  // 语音输入处理
-  Future<void> _handleSpeechInput() async {
-    if (_isListening) {
-      // 停止监听
-      await _speechService.stopListening();
+  // 录音功能
+  Future<void> _handleAudioRecording() async {
+    if (_isRecording) {
+      // 停止录音
+      final path = await _audioService.stopRecording();
+      if (path != null) {
+        final duration = Duration(
+          seconds: _audioService.getDurationInSeconds(),
+        );
+        _addPreview(PreviewMessage(
+          type: PreviewType.audio,
+          content: '语音',
+          filePath: path,
+          duration: duration,
+        ));
+      }
       setState(() {
-        _isListening = false;
-        _speechStatus = '点击说话';
+        _isRecording = false;
       });
       return;
     }
 
-    // 开始监听
-    final success = await _speechService.startListening(
-      onResult: (text) {
-        setState(() {
-          _speechStatus = '识别中...';
-        });
-      },
-      onListeningStateChanged: (state) {
-        if (mounted) {
-          setState(() {
-            switch (state) {
-              case 'listening':
-                _isListening = true;
-                _speechStatus = '正在聆听...';
-                break;
-              case 'stopped':
-                _isListening = false;
-                _speechStatus = '点击说话';
-                break;
-              case 'error':
-                _isListening = false;
-                _speechStatus = '点击重试';
-                break;
-            }
-          });
-        }
-      },
-    );
-
-    if (!success && mounted) {
+    // 开始录音
+    final success = await _audioService.startRecording();
+    if (success && mounted) {
       setState(() {
-        _speechStatus = '点击重试';
+        _isRecording = true;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('语音识别启动失败，请检查麦克风权限')),
+        const SnackBar(
+          content: Text('开始录音...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('录音启动失败，请检查麦克风权限')),
       );
     }
   }
@@ -319,16 +373,33 @@ class _ChatInputFieldState extends State<ChatInputField> {
 
     return Column(
       children: [
-        if (_showEmojiPicker)
-          InlineEmojiPicker(
-            onEmojiSelected: _onEmojiSelected,
+        // 预览区域
+        if (_previews.isNotEmpty)
+          Container(
+            height: 120,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _previews.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: MessagePreviewWidget(
+                    preview: _previews[index],
+                    onRemove: () => _removePreview(index),
+                    onSend: () => _sendPreview(index),
+                  ),
+                );
+              },
+            ),
           ),
-        // 识别状态提示
-        if (_isListening)
+
+        // 语音录制状态提示
+        if (_isRecording)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
+              color: Colors.red.withOpacity(0.1),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -338,18 +409,26 @@ class _ChatInputFieldState extends State<ChatInputField> {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: theme.colorScheme.primary,
+                    color: Colors.red,
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  _speechStatus,
-                  style: TextStyle(
-                    color: theme.colorScheme.onPrimaryContainer,
-                  ),
+                const Text('正在录音...',
+                  style: TextStyle(color: Colors.red)),
+                IconButton(
+                  icon: const Icon(Icons.stop, color: Colors.red),
+                  iconSize: 20,
+                  onPressed: _handleAudioRecording,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
+          ),
+
+        if (_showEmojiPicker)
+          InlineEmojiPicker(
+            onEmojiSelected: _onEmojiSelected,
           ),
         Container(
           decoration: BoxDecoration(
@@ -423,18 +502,16 @@ class _ChatInputFieldState extends State<ChatInputField> {
                     onPressed: _toggleEmojiPicker,
                   ),
 
-                  // Voice input button
+                  // Voice record button
                   IconButton(
                     icon: Icon(
-                      _isListening ? Icons.stop : Icons.mic,
-                      color: _isListening
+                      _isRecording ? Icons.stop : Icons.mic,
+                      color: _isRecording
                           ? Colors.red
-                          : (_speechStatus == '点击重试'
-                              ? Colors.orange
-                              : theme.colorScheme.onSurface.withOpacity(0.6)),
+                          : (theme.colorScheme.onSurface.withOpacity(0.6)),
                       size: 24,
                     ),
-                    onPressed: _handleSpeechInput,
+                    onPressed: _handleAudioRecording,
                   ),
 
                   // Send button
