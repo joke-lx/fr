@@ -21,10 +21,8 @@ class UserProvider with ChangeNotifier {
     _currentUser = await UserService.getCurrentUser();
 
     _isLoading = false;
-    // Use addPostFrameCallback to notify after the first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      notifyListeners();
-    });
+    // Don't call notifyListeners here to avoid setState during build
+    // The Consumer widgets will automatically rebuild when they access the data
   }
 
   Future<void> refreshUsers() async {

@@ -33,43 +33,49 @@ class MessageProvider with ChangeNotifier {
     required String content,
     MessageType type = MessageType.text,
   }) async {
-    final message = Message(
-      id: const Uuid().v4(),
-      senderId: senderId,
-      receiverId: receiverId,
-      content: content,
-      type: type,
-      status: MessageStatus.sending,
-      createdAt: DateTime.now(),
-    );
-
-    // Add to local list immediately
-    if (_chatMessages[receiverId] == null) {
-      _chatMessages[receiverId] = [];
-    }
-    _chatMessages[receiverId]!.add(message);
+    _isLoading = true;
     notifyListeners();
 
-    // Simulate sending
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final message = Message(
+        id: const Uuid().v4(),
+        senderId: senderId,
+        receiverId: receiverId,
+        content: content,
+        type: type,
+        status: MessageStatus.sending,
+        createdAt: DateTime.now(),
+      );
 
-    // Update to sent status
-    final sentMessage = message.copyWith(status: MessageStatus.sent);
-    await MessageService.sendMessage(sentMessage);
+      // Add to local list immediately
+      if (_chatMessages[receiverId] == null) {
+        _chatMessages[receiverId] = [];
+      }
+      _chatMessages[receiverId]!.add(message);
+      notifyListeners();
 
-    // Update local list
-    final index = _chatMessages[receiverId]!.indexWhere((m) => m.id == message.id);
-    if (index != -1) {
-      _chatMessages[receiverId]![index] = sentMessage;
+      // Simulate sending
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Update to sent status
+      final sentMessage = message.copyWith(status: MessageStatus.sent);
+      await MessageService.sendMessage(sentMessage);
+
+      // Update local list
+      final index = _chatMessages[receiverId]!.indexWhere((m) => m.id == message.id);
+      if (index != -1) {
+        _chatMessages[receiverId]![index] = sentMessage;
+      }
+
+      // Update session
+      await ChatSessionService.updateSessionWithMessage(senderId, sentMessage);
+      if (senderId != receiverId) {
+        await ChatSessionService.updateSessionWithMessage(receiverId, sentMessage);
+      }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    // Update session
-    await ChatSessionService.updateSessionWithMessage(senderId, sentMessage);
-    if (senderId != receiverId) {
-      await ChatSessionService.updateSessionWithMessage(receiverId, sentMessage);
-    }
-
-    notifyListeners();
   }
 
   Future<void> markAsRead(String senderId, String receiverId) async {
