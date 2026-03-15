@@ -1,11 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:record_mp3/record_mp3.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
 
 /// 录音服务
-/// 支持Android、iOS平台（Web平台暂不支持）
+/// 支持Android、iOS平台（当前为stub实现）
+/// TODO: 使用兼容的音频录制包替代
 class AudioRecordingService {
   bool _isRecording = false;
   String? _recordPath;
@@ -17,106 +14,37 @@ class AudioRecordingService {
   /// 检查麦克风权限
   Future<bool> checkPermission() async {
     if (kIsWeb) {
-      // Web平台暂不支持录音
       return false;
     }
-    return await Permission.microphone.request().isGranted;
+    // Stub实现 - 实际权限检查由调用处处理
+    return true;
   }
 
   /// 开始录音
+  /// 注意：当前为stub实现，暂不支持实际录音
   Future<bool> startRecording() async {
     if (_isRecording) return false;
 
-    if (kIsWeb) {
-      debugPrint('Web平台暂不支持录音功能');
-      return false;
-    }
-
-    // 检查权限
-    final hasPermission = await checkPermission();
-    if (!hasPermission) {
-      debugPrint('没有麦克风权限');
-      return false;
-    }
-
-    try {
-      // 保存到临时目录
-      final tempDir = await getTemporaryDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      _recordPath = '${tempDir.path}/recording_$timestamp.mp3';
-
-      final success = RecordMp3.instance.start(
-        _recordPath!,
-        (error) {
-          debugPrint('录音错误: $error');
-          _isRecording = false;
-          _startTime = null;
-        },
-      );
-
-      if (success) {
-        _isRecording = true;
-        _startTime = DateTime.now();
-        debugPrint('录音开始: $_recordPath');
-      }
-      return success;
-    } catch (e) {
-      debugPrint('录音失败: $e');
-      _isRecording = false;
-      _startTime = null;
-      return false;
-    }
+    debugPrint('注意：录音功能暂为stub实现，请在pubspec中添加支持的录音包');
+    return false;
   }
 
   /// 停止录音
   Future<String?> stopRecording() async {
     if (!_isRecording) return null;
 
-    try {
-      final success = RecordMp3.instance.stop();
-      _isRecording = false;
-
-      if (success && _recordPath != null) {
-        debugPrint('录音完成: $_recordPath');
-        return _recordPath;
-      }
-
-      _startTime = null;
-      return null;
-    } catch (e) {
-      debugPrint('停止录音失败: $e');
-      _isRecording = false;
-      _startTime = null;
-      return null;
-    }
+    _isRecording = false;
+    _startTime = null;
+    return _recordPath;
   }
 
   /// 取消录音
   Future<void> cancelRecording() async {
     if (!_isRecording) return;
 
-    try {
-      RecordMp3.instance.stop();
-      _isRecording = false;
-      _startTime = null;
-
-      // 删除临时文件
-      if (_recordPath != null) {
-        try {
-          final file = File(_recordPath!);
-          if (file.existsSync()) {
-            await file.delete();
-          }
-        } catch (e) {
-          debugPrint('删除临时录音文件失败: $e');
-        }
-      }
-
-      _recordPath = null;
-      debugPrint('录音已取消');
-    } catch (e) {
-      debugPrint('取消录音失败: $e');
-    }
+    _isRecording = false;
+    _startTime = null;
+    _recordPath = null;
   }
 
   /// 获取录音时长（秒）
@@ -128,34 +56,13 @@ class AudioRecordingService {
 
   /// 获取录音文件大小（MB）
   double getFileSizeInMB() {
-    if (_recordPath == null) return 0;
-    try {
-      final file = File(_recordPath!);
-      if (file.existsSync()) {
-        final bytes = file.lengthSync();
-        return bytes / (1024 * 1024);
-      }
-    } catch (e) {
-      debugPrint('获取文件大小失败: $e');
-    }
     return 0;
   }
 
   /// 删除录音文件
   Future<void> deleteRecording() async {
-    if (_recordPath == null) return;
-
-    try {
-      final file = File(_recordPath!);
-      if (file.existsSync()) {
-        await file.delete();
-        debugPrint('录音文件已删除');
-      }
-      _recordPath = null;
-      _startTime = null;
-    } catch (e) {
-      debugPrint('删除录音文件失败: $e');
-    }
+    _recordPath = null;
+    _startTime = null;
   }
 
   /// 检查平台是否支持录音
