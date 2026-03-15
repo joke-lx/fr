@@ -6,13 +6,13 @@
 -keep class io.flutter.**  { *; }
 -keep class io.flutter.plugins.**  { *; }
 
-# Camera
--keep class androidx.camera.** { *; }
--keep interface androidx.camera.** { *; }
--dontwarn androidx.camera.**
+# Google Play Core (for deferred components)
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
+-keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
+-dontwarn com.google.android.play.**
+-keep class com.google.android.play.** { *; }
 
 # Image Picker
--keep class com.fluttercamerapreview.FlutterCameraPreviewPlugin { *; }
 -keep class io.flutter.plugins.imagepicker.** { *; }
 -dontwarn io.flutter.plugins.imagepicker.**
 
@@ -47,3 +47,19 @@
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
+
+# Prevent R8 from leaving Data object members always null
+-keepclassmembers,allowobfuscation class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+  <fields>;
+}
+
+# Keep serialized name
+-keepattributes *Annotation*
+-keepclassmembers class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Don't obfuscate JSON model classes
+-keep class com.example.** { *; }
+-keep class **_Json { *; }
