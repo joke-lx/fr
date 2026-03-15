@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import '../models/models.dart';
 import '../services/services.dart';
 
@@ -20,8 +21,10 @@ class UserProvider with ChangeNotifier {
     _currentUser = await UserService.getCurrentUser();
 
     _isLoading = false;
-    // Delay notifyListeners to avoid calling during build
-    Future.microtask(() => notifyListeners());
+    // Use addPostFrameCallback to notify after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 
   Future<void> refreshUsers() async {
