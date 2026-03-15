@@ -13,16 +13,13 @@ class UserProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   Future<void> init() async {
-    _isLoading = true;
-    notifyListeners();
-
+    // Don't set loading state during init to avoid setState during build
     await MockDataService.generateTestData();
     _users = await UserService.getAllUsers();
     _currentUser = await UserService.getCurrentUser();
 
-    _isLoading = false;
-    // Don't call notifyListeners here to avoid setState during build
-    // The Consumer widgets will automatically rebuild when they access the data
+    // Notify listeners after data is loaded
+    notifyListeners();
   }
 
   Future<void> refreshUsers() async {
