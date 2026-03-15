@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
+import '../media_test_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -170,6 +171,19 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.help_outline,
                       title: '帮助与反馈',
                       onTap: () {},
+                    ),
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.science,
+                      title: '媒体功能测试',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MediaTestPage(),
+                          ),
+                        );
+                      },
                     ),
                     _buildMenuItem(
                       context,

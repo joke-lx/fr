@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
+import '../../services/chat_response_service.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final User friend;
@@ -16,6 +18,7 @@ class ChatDetailPage extends StatefulWidget {
 class _ChatDetailPageState extends State<ChatDetailPage> {
   final ScrollController _scrollController = ScrollController();
   late MessageProvider _messageProvider;
+  bool _isTyping = false;
 
   @override
   void initState() {
@@ -37,7 +40,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     await _messageProvider.loadChatMessages(currentUser.id, widget.friend.id);
     await _messageProvider.markAsRead(widget.friend.id, currentUser.id);
 
-    // Scroll to bottom
+    _scrollToBottom();
+  }
+
+  Future<void> _scrollToBottom() async {
     if (_scrollController.hasClients) {
       await Future.delayed(const Duration(milliseconds: 100));
       _scrollController.animateTo(
@@ -53,23 +59,58 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final currentUser = userProvider.currentUser!;
     final sessionProvider = context.read<ChatSessionProvider>();
 
+    // 发送用户消息
     await _messageProvider.sendMessage(
       senderId: currentUser.id,
       receiverId: widget.friend.id,
       content: content,
     );
 
-    // Update session and scroll to bottom
     await sessionProvider.refreshSessions(currentUser.id);
+    await _scrollToBottom();
 
-    if (_scrollController.hasClients) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+    // 显示"正在输入"状态
+    setState(() {
+      _isTyping = true;
+    });
+
+    // 模拟延迟后回复
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    // 获取智能回复
+    final response = ChatResponseService.getResponse(content);
+
+    // 发送回复消息
+    await _messageProvider.sendMessage(
+      senderId: widget.friend.id,
+      receiverId: currentUser.id,
+      content: response,
+    );
+
+    setState(() {
+      _isTyping = false;
+    });
+
+    await sessionProvider.refreshSessions(currentUser.id);
+    await _scrollToBottom();
+  }
+
+  Future<void> _handleImageSend(String? imagePath) async {
+    if (imagePath == null) return;
+
+    final userProvider = context.read<UserProvider>();
+    final currentUser = userProvider.currentUser!;
+    final sessionProvider = context.read<ChatSessionProvider>();
+
+    // 发送图片消息
+    await _messageProvider.sendMessage(
+      senderId: currentUser.id,
+      receiverId: widget.friend.id,
+      content: imagePath,
+    );
+
+    await sessionProvider.refreshSessions(currentUser.id);
+    await _scrollToBottom();
   }
 
   @override
@@ -119,16 +160,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     widget.friend.nickname,
                     style: const TextStyle(fontSize: 16),
                   ),
-                  if (widget.friend.status == 'online')
-                    const Text(
-                      '在线',
-                      style: TextStyle(fontSize: 12, color: Colors.green),
-                    )
-                  else
-                    const Text(
-                      '离线',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    _isTyping ? '正在输入...' : (widget.friend.status == 'online' ? '在线' : '离线'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _isTyping ? Colors.blue : (widget.friend.status == 'online' ? Colors.green : Colors.grey),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -146,8 +184,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           Expanded(
             child: Consumer<MessageProvider>(
               builder: (context, messageProvider, child) {
-                final messages =
-                    messageProvider.getChatMessages(widget.friend.id);
+                final messages = messageProvider.getChatMessages(widget.friend.id);
 
                 if (messages.isEmpty) {
                   return Center(
@@ -171,13 +208,31 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '开始聊天吧',
+                          '试着说点什么吧！',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onSurface
                                     .withOpacity(0.5),
                               ),
+                        ),
+                        const SizedBox(height: 24),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            _QuickReply(
+                              text: '你好',
+                              onTap: () => _handleSend('你好'),
+                            ),
+                            _QuickReply(
+                              text: '在吗',
+                              onTap: () => _handleSend('在吗'),
+                            ),
+                            _QuickReply(
+                              text: '今天天气怎么样',
+                              onTap: () => _handleSend('今天天气怎么样'),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -191,15 +246,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final senderId = message.senderId;
-                    final sender = isMe(widget.friend)
+                    final sender = senderId == currentUser.id
                         ? currentUser
-                        : (senderId == currentUser.id
-                            ? currentUser
-                            : widget.friend);
+                        : widget.friend;
 
                     return MessageBubble(
                       message: message,
-                      isMe: isMe(sender!),
+                      isMe: isMe(sender),
                       sender: sender,
                     );
                   },
@@ -209,7 +262,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           ),
           ChatInputField(
             onSend: _handleSend,
-            onAttachmentTap: () => _showAttachmentOptions(context),
+            onImageSend: _handleImageSend,
             isLoading: _messageProvider.isLoading,
           ),
         ],
@@ -229,7 +282,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               title: const Text('搜索聊天记录'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Implement search
               },
             ),
             ListTile(
@@ -254,50 +306,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
-  void _showAttachmentOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.image),
-              title: const Text('图片'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement image picker
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('拍照'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement camera
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.attach_file),
-              title: const Text('文件'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement file picker
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.location_on),
-              title: const Text('位置'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement location
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showClearChatDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -312,7 +320,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // TODO: Implement clear chat
             },
             child: const Text('清空'),
           ),
@@ -335,11 +342,42 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // TODO: Implement block
             },
             child: const Text('拉黑', style: TextStyle(color: Colors.red)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickReply extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+
+  const _QuickReply({
+    required this.text,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            fontSize: 14,
+          ),
+        ),
       ),
     );
   }
