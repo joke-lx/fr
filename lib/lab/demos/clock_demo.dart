@@ -602,7 +602,10 @@ class _ClockCard extends StatelessWidget {
                   ),
                   GestureDetector(
                     onTap: onDelete,
-                    child: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.close, size: 20, color: Colors.red.withOpacity(0.7)),
+                    ),
                   ),
                 ],
               ),

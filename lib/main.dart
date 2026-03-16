@@ -9,6 +9,7 @@ import 'lab/lab_container.dart';
 import 'lab/demos/grid_dashboard_demo.dart';
 import 'lab/demos/notebook_demo.dart';
 import 'lab/demos/clock_demo.dart';
+import 'lab/demos/network_demo.dart';
 import 'lab/providers/lab_note_provider.dart';
 import 'lab/providers/lab_clock_provider.dart';
 
@@ -17,6 +18,7 @@ void main() {
   registerGridDashboardDemo();
   registerNotebookDemo();
   registerClockDemo();
+  registerNetworkDemo();
 
   runApp(const MyApp());
 }
