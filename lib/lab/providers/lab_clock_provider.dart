@@ -29,10 +29,15 @@ class LabClockProvider with ChangeNotifier {
       if (clock.isRunning && clock.remainingSeconds > 0) {
         _clocks[i] = clock.copyWith(remainingSeconds: clock.remainingSeconds - 1);
         hasChanges = true;
+      } else if (clock.isRunning && clock.remainingSeconds <= 0) {
+        // 倒计时结束，自动暂停
+        _clocks[i] = clock.copyWith(isRunning: false, remainingSeconds: 0);
+        hasChanges = true;
       }
     }
     if (hasChanges) {
       notifyListeners();
+      _saveClocks(); // 实时保存状态
     }
   }
 
