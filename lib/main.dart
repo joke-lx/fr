@@ -4,14 +4,16 @@ import 'providers/providers.dart';
 import 'screens/home/home_page.dart';
 import 'screens/friends/friends_page.dart';
 import 'screens/profile/profile_page.dart';
-import 'screens/notebook/notebook_page.dart';
 import 'screens/lab/lab_page.dart';
 import 'lab/lab_container.dart';
 import 'lab/demos/grid_dashboard_demo.dart';
+import 'lab/demos/notebook_demo.dart';
+import 'lab/providers/lab_note_provider.dart';
 
 void main() {
   // 注册 Demo 页面
   registerGridDashboardDemo();
+  registerNotebookDemo();
 
   runApp(const MyApp());
 }
@@ -27,6 +29,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MessageProvider()),
         ChangeNotifierProvider(create: (_) => FriendProvider()),
         ChangeNotifierProvider(create: (_) => NoteProvider()),
+        ChangeNotifierProvider(create: (_) => LabNoteProvider()),
         ChangeNotifierProxyProvider<UserProvider, ChatSessionProvider>(
           create: (_) => ChatSessionProvider(),
           update: (_, userProvider, sessionProvider) {
@@ -62,7 +65,6 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = const [
     HomePage(),
     FriendsPage(),
-    NotebookPage(),
     ProfilePage(),
   ];
 
@@ -125,11 +127,6 @@ class _MainScreenState extends State<MainScreen> {
                 icon: const Icon(Icons.people_outline),
                 selectedIcon: const Icon(Icons.people),
                 label: '通讯录',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.note_alt_outlined),
-                selectedIcon: const Icon(Icons.note_alt),
-                label: '笔记本',
               ),
               NavigationDestination(
                 icon: const Icon(Icons.person_outline),

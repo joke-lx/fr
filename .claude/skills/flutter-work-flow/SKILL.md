@@ -2,6 +2,9 @@
 name: flutter-work-flow
 description: flutter的开发操作流程,在任何问题都需要优先加载这个SKILL
 ---
+
+import: 任何不能立即完成的任务,请使用todolist相关的工具 先规划任务 然后再每个条目进行完成 禁止没有任何流程的进行代码控制
+
 1. 完成代码之后,优先执行web -release 最低成本的检查编译报错
 2. 然后执行run -chrome 启动在容器当中,在web当中进行运行 指定端口10086,如果这个端口被占用 就中断 保证这个端口被你使用 flutter run -d chrome --web-port 10086
 3. 如果没有报错,每次完成代一次commit都需要推送到github上,让github完成流水线构建apk,也就是说本地是没有java相关的开发环境 所有的debug都是通过web实现
