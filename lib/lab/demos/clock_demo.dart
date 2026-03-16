@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../lab_container.dart';
@@ -12,7 +14,7 @@ class ClockDemo extends DemoPage {
   String get title => '时钟';
 
   @override
-  String get description => '网格时钟，支持倒计时功能';
+  String get description => '波浪分割时钟与记录';
 
   @override
   Widget buildPage(BuildContext context) {
@@ -27,10 +29,24 @@ class _ClockDemoPage extends StatefulWidget {
   State<_ClockDemoPage> createState() => _ClockDemoPageState();
 }
 
-class _ClockDemoPageState extends State<_ClockDemoPage> {
-  double _scrollOffset = 0;
-  bool _isDrawerOpen = false;
-  final ScrollController _scrollController = ScrollController();
+class _ClockDemoPageState extends State<_ClockDemoPage> with SingleTickerProviderStateMixin {
+  // 波浪分割线位置：0.0 = 时钟全屏，1.0 = 记录全屏
+  double _splitPosition = 0.65; // 默认时钟占65%，记录占35%
+  bool _isDragging = false;
+  late AnimationController _animController;
+  late Animation<double> _waveAnimation;
+
+  // 吸附点位置
+  static const double _snapOneThird = 1.0 / 3.0;
+  static const double _snapTwoThird = 2.0 / 3.0;
+  static const double _snapFull = 1.0;
+  static const double _snapClockOnly = 0.0;
+
+  // 吸附阈值
+  static const double _snapThreshold = 0.08;
+
+  final ScrollController _clockScrollController = ScrollController();
+  final ScrollController _recordScrollController = ScrollController();
 
   @override
   void initState() {
@@ -38,256 +54,412 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LabClockProvider>().loadClocks();
     });
-    _scrollController.addListener(_onScroll);
+
+    // 波浪动画
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+    _waveAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    _animController.dispose();
+    _clockScrollController.dispose();
+    _recordScrollController.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    final offset = _scrollController.offset;
-    if (offset < 0 && !_isDrawerOpen) {
-      // 向下拉并且在顶部，展开抽屉
-      setState(() {
-        _scrollOffset = -offset;
-      });
+  // 吸附到最近的点
+  double _snapToNearest(double position) {
+    final distances = {
+      _snapClockOnly: (position - _snapClockOnly).abs(),
+      _snapOneThird: (position - _snapOneThird).abs(),
+      _snapTwoThird: (position - _snapTwoThird).abs(),
+      _snapFull: (position - _snapFull).abs(),
+    };
+
+    double nearest = position;
+    double minDistance = distances[_snapClockOnly]!;
+
+    distances.forEach((key, value) {
+      if (value < minDistance) {
+        minDistance = value;
+        nearest = key;
+      }
+    });
+
+    // 只有在阈值范围内才吸附
+    if (minDistance <= _snapThreshold) {
+      return nearest;
     }
-    // 滚动时自动关闭抽屉
-    if (_isDrawerOpen && offset > 0) {
-      setState(() {
-        _isDrawerOpen = false;
-        _scrollOffset = 0;
-      });
-    }
+    return position;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GestureDetector(
-        onVerticalDragUpdate: (details) {
-          setState(() {
-            // 向下拉(delta.dy > 0)时增加offset，向上拉减少
-            _scrollOffset = (_scrollOffset + details.delta.dy).clamp(0, 300);
-          });
-        },
-        onVerticalDragEnd: (details) {
-          if (_scrollOffset > 80) {
-            setState(() {
-              _isDrawerOpen = true;
-            });
-          } else {
-            setState(() {
-              _scrollOffset = 0;
-              _isDrawerOpen = false;
-            });
-          }
-        },
-        child: Stack(
-          children: [
-            // 主页面
-            Consumer<LabClockProvider>(
-              builder: (context, provider, child) {
-                if (provider.clocks.isEmpty) {
-                  return _buildEmpty(context);
-                }
-                return CustomScrollView(
-                  controller: _scrollController,
-                  slivers: [
-                    SliverPadding(
-                      padding: EdgeInsets.only(top: _isDrawerOpen ? 310 : (_scrollOffset > 20 ? _scrollOffset : 0)),
-                      sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 1.0,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final clock = provider.clocks[index];
-                            return _ClockCard(
-                              clock: clock,
-                              onTap: () => _editClock(context, clock),
-                              onDelete: () => _deleteClock(context, clock),
-                              onStart: () => context.read<LabClockProvider>().startCountdown(clock.id),
-                              onPause: () => context.read<LabClockProvider>().pauseCountdown(clock.id),
-                              onReset: () => context.read<LabClockProvider>().resetCountdown(clock.id),
-                            );
-                          },
-                          childCount: provider.clocks.length,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // 时钟页面（上半部分）
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).size.height * (1 - _splitPosition),
+            child: _buildClockPage(context),
+          ),
+          // 记录页面（下半部分）
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).size.height * _splitPosition,
+            child: _buildRecordPage(context),
+          ),
+          // 波浪分割线
+          Positioned(
+            top: MediaQuery.of(context).size.height * (1 - _splitPosition) - 20,
+            left: 0,
+            right: 0,
+            child: GestureDetector(
+              onVerticalDragStart: (_) {
+                setState(() => _isDragging = true);
               },
+              onVerticalDragUpdate: (details) {
+                setState(() {
+                  final screenHeight = MediaQuery.of(context).size.height;
+                  final deltaRatio = -details.delta.dy / screenHeight;
+                  _splitPosition = (_splitPosition + deltaRatio).clamp(0.15, 0.85);
+                });
+              },
+              onVerticalDragEnd: (_) {
+                setState(() {
+                  _isDragging = false;
+                  _splitPosition = _snapToNearest(_splitPosition);
+                });
+              },
+              child: Container(
+                height: 40,
+                color: Colors.transparent,
+                child: AnimatedBuilder(
+                  animation: _waveAnimation,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      size: Size.infinite,
+                      painter: _WaveLinePainter(
+                        waveAnimation: _waveAnimation.value,
+                        isDragging: _isDragging,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
-            // 顶部恒定小指示器 - 提示可以下拉
+          ),
+          // 分割线中间的拖动手柄
+          Positioned(
+            top: MediaQuery.of(context).size.height * (1 - _splitPosition) - 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: _isDragging ? 48 : 40,
+                height: _isDragging ? 6 : 5,
+                decoration: BoxDecoration(
+                  color: _isDragging
+                      ? Theme.of(context).colorScheme.primary
+                      : const Color(0xFFE5E5EA),
+                  borderRadius: BorderRadius.circular(_isDragging ? 3 : 2.5),
+                  boxShadow: _isDragging
+                      ? [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : null,
+                ),
+              ),
+            ),
+          ),
+          // 顶部提示 - 只在接近时钟全屏时显示
+          if (_splitPosition < 0.25)
             Positioned(
-              top: 0,
+              top: 60,
               left: 0,
               right: 0,
-              child: Container(
-                height: 24,
-                color: Colors.transparent,
-                child: Center(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: _isDrawerOpen ? 0 : 40,
-                    height: 4,
+              child: Center(
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _splitPosition < 0.2 ? 0.6 : 0.0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: _isDrawerOpen ? Colors.transparent : Colors.grey[400],
-                      borderRadius: BorderRadius.circular(2),
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      '向下拖动波浪线查看记录',
+                      style: TextStyle(color: Colors.white, fontSize: 13),
                     ),
                   ),
                 ),
               ),
             ),
-            // 顶部抽屉
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              height: _isDrawerOpen ? 300 : (_scrollOffset > 20 ? _scrollOffset : 0),
-              child: _scrollOffset > 20 || _isDrawerOpen
-                  ? Material(
-                      color: Theme.of(context).colorScheme.surface,
-                      elevation: 4,
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                      child: Column(
-                        children: [
-                          // 拖动手柄
-                          GestureDetector(
-                            onVerticalDragUpdate: (details) {
-                              setState(() {
-                                _scrollOffset = (_scrollOffset - details.delta.dy).clamp(0, 300);
-                              });
-                            },
-                            onVerticalDragEnd: (details) {
-                              if (_scrollOffset > 80) {
-                                setState(() {
-                                  _isDrawerOpen = true;
-                                });
-                              } else {
-                                setState(() {
-                                  _scrollOffset = 0;
-                                  _isDrawerOpen = false;
-                                });
-                              }
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(top: 12),
-                              width: 40,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[400],
-                                borderRadius: BorderRadius.circular(2),
+        ],
+      ),
+      floatingActionButton: _buildFloatingActionButton(context),
+    );
+  }
+
+  Widget _buildClockPage(BuildContext context) {
+    return Consumer<LabClockProvider>(
+      builder: (context, provider, child) {
+        if (provider.clocks.isEmpty) {
+          return _buildEmpty(context);
+        }
+        return Container(
+          color: Colors.white,
+          child: GridView.builder(
+            controller: _clockScrollController,
+            padding: const EdgeInsets.fromLTRB(16, 80, 16, 60),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: provider.clocks.length,
+            itemBuilder: (context, index) {
+              final clock = provider.clocks[index];
+              return _ClockCard(
+                clock: clock,
+                onTap: () => _editClock(context, clock),
+                onDelete: () => _deleteClock(context, clock),
+                onStart: () => context.read<LabClockProvider>().startCountdown(clock.id),
+                onPause: () => context.read<LabClockProvider>().pauseCountdown(clock.id),
+                onReset: () => context.read<LabClockProvider>().resetCountdown(clock.id),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecordPage(BuildContext context) {
+    return Consumer<LabClockProvider>(
+      builder: (context, provider, child) {
+        final records = provider.records;
+        return Container(
+          color: const Color(0xFFF9F9F9),
+          child: Column(
+            children: [
+              const SizedBox(height: 50),
+              // 记录标题栏
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.history_rounded,
+                      color: const Color(0xFF007AFF),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      '使用记录',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF000000),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (records.isNotEmpty)
+                      GestureDetector(
+                        onTap: () => _showClearRecordsDialog(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF3B30),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Text(
+                            '清空',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE5E5EA)),
+              Expanded(
+                child: records.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.history_toggle_off_rounded,
+                              size: 56,
+                              color: const Color(0xFFE5E5EA),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              '暂无记录',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF8E8E93),
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                            child: Row(
-                              children: [
-                                Icon(Icons.history, color: Theme.of(context).colorScheme.primary),
-                                const SizedBox(width: 8),
-                                Text('使用记录', style: Theme.of(context).textTheme.titleLarge),
-                                const Spacer(),
-                                Consumer<LabClockProvider>(
-                                  builder: (context, provider, child) {
-                                    if (provider.records.isEmpty) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return GestureDetector(
-                                      onTap: () => _showClearRecordsDialog(context),
-                                      child: const Icon(Icons.delete_sweep, color: Colors.red),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: () => setState(() {
-                                    _isDrawerOpen = false;
-                                    _scrollOffset = 0;
-                                  }),
-                                  child: const Icon(Icons.close),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Divider(height: 1),
-                          Expanded(
-                            child: Consumer<LabClockProvider>(
-                              builder: (context, provider, child) {
-                                final records = provider.records;
-                                if (records.isEmpty) {
-                                  return Center(
-                                    child: Text('暂无记录', style: TextStyle(color: Theme.of(context).colorScheme.outline)),
-                                  );
-                                }
-                                return ListView.builder(
-                                  itemCount: records.length,
-                                  itemBuilder: (_, index) => _buildRecordItem(context, records[index]),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _recordScrollController,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: records.length,
+                        itemBuilder: (_, index) => _buildModernRecordItem(context, records[index]),
                       ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addClock(context),
-        child: const Icon(Icons.add),
-      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFloatingActionButton(BuildContext context) {
+    return FloatingActionButton(
+      onPressed: () => _addClock(context),
+      backgroundColor: const Color(0xFF007AFF),
+      child: const Icon(Icons.add, color: Colors.white),
     );
   }
 
   Widget _buildEmpty(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.timer_outlined, size: 64, color: theme.colorScheme.outline),
-          const SizedBox(height: 16),
-          Text('暂无时钟', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.outline)),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            onPressed: () => _addClock(context),
-            icon: const Icon(Icons.add),
-            label: const Text('添加时钟'),
-          ),
-        ],
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.timer_outlined, size: 64, color: const Color(0xFFE5E5EA)),
+            const SizedBox(height: 16),
+            Text('暂无时钟', style: TextStyle(color: const Color(0xFF8E8E93))),
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              onPressed: () => _addClock(context),
+              icon: const Icon(Icons.add),
+              label: const Text('添加时钟'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007AFF),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildClockGrid(BuildContext context, List<LabClock> clocks) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.0,
+  Widget _buildModernRecordItem(BuildContext context, LabClockRecord record) {
+    final dateFormat = DateFormat('MM-dd HH:mm');
+    final actualDuration = record.endTime != null
+        ? record.endTime!.difference(record.startTime).inSeconds
+        : 0;
+    final durationStr = _formatDuration(actualDuration);
+
+    return Dismissible(
+      key: Key(record.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        color: const Color(0xFFFF3B30),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete_rounded, color: Colors.white, size: 24),
       ),
-      itemCount: clocks.length,
-      itemBuilder: (context, index) => _ClockCard(
-        clock: clocks[index],
-        onTap: () => _editClock(context, clocks[index]),
-        onDelete: () => _deleteClock(context, clocks[index]),
-        onStart: () => context.read<LabClockProvider>().startCountdown(clocks[index].id),
-        onPause: () => context.read<LabClockProvider>().pauseCountdown(clocks[index].id),
-        onReset: () => context.read<LabClockProvider>().resetCountdown(clocks[index].id),
+      onDismissed: (direction) {
+        context.read<LabClockProvider>().deleteRecord(record.id);
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0x0D000000),
+              offset: const Offset(0, 1),
+              blurRadius: 4,
+            ),
+          ],
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: record.completed
+                  ? const Color(0xFF34C759).withOpacity(0.1)
+                  : const Color(0xFFFF9500).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              record.completed ? Icons.check_rounded : Icons.schedule_rounded,
+              color: record.completed ? const Color(0xFF34C759) : const Color(0xFFFF9500),
+              size: 22,
+            ),
+          ),
+          title: Text(
+            record.clockTitle,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF000000),
+            ),
+          ),
+          subtitle: Text(
+            '${dateFormat.format(record.startTime)} • 计划: ${_formatDuration(record.durationSeconds)}',
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF8E8E93),
+            ),
+          ),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: record.completed
+                  ? const Color(0xFF34C759).withOpacity(0.1)
+                  : const Color(0xFFFF9500).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '实际: $durationStr',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: record.completed ? const Color(0xFF34C759) : const Color(0xFFFF9500),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -340,45 +512,6 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
     );
   }
 
-  Widget _buildRecordItem(BuildContext context, LabClockRecord record) {
-    final dateFormat = DateFormat('MM-dd HH:mm');
-    final actualDuration = record.endTime != null
-        ? record.endTime!.difference(record.startTime).inSeconds
-        : 0;
-    final durationStr = _formatDuration(actualDuration);
-
-    return Dismissible(
-      key: Key(record.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Colors.red,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      onDismissed: (direction) {
-        context.read<LabClockProvider>().deleteRecord(record.id);
-      },
-      child: ListTile(
-        leading: Icon(
-          record.completed ? Icons.check_circle : Icons.pause_circle,
-          color: record.completed ? Colors.green : Colors.orange,
-        ),
-        title: Text(record.clockTitle),
-        subtitle: Text(
-          '${dateFormat.format(record.startTime)} • 计划: ${_formatDuration(record.durationSeconds)}',
-        ),
-        trailing: Text(
-          '实际: $durationStr',
-          style: TextStyle(
-            color: record.completed ? Colors.green : Colors.orange,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
   String _formatDuration(int seconds) {
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
@@ -405,92 +538,97 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 16, right: 16, top: 16),
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 20, right: 20, top: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(clock == null ? '添加时钟' : '编辑时钟', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(clock == null ? '添加时钟' : '编辑时钟', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: const Icon(Icons.close, size: 24),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: '标题', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descController,
+                decoration: const InputDecoration(labelText: '描述', border: OutlineInputBorder()),
+                maxLines: 2,
+              ),
               const SizedBox(height: 16),
-              TextField(controller: titleController, decoration: const InputDecoration(labelText: '标题', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: descController, decoration: const InputDecoration(labelText: '描述', border: OutlineInputBorder()), maxLines: 2),
-              const SizedBox(height: 12),
               const Text('倒计时时长:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 360;
-                  if (isWide) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _timePicker('时', hours, 23, (v) => setState(() => hours = v)),
-                        const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text(' : ', style: TextStyle(fontSize: 16))),
-                        _timePicker('分', minutes, 59, (v) => setState(() => minutes = v)),
-                        const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text(' : ', style: TextStyle(fontSize: 16))),
-                        _timePicker('秒', seconds, 59, (v) => setState(() => seconds = v)),
-                      ],
-                    );
-                  }
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _timePicker('时', hours, 23, (v) => setState(() => hours = v)),
-                      const Text(' : ', style: TextStyle(fontSize: 14)),
-                      _timePicker('分', minutes, 59, (v) => setState(() => minutes = v)),
-                      const Text(' : ', style: TextStyle(fontSize: 14)),
-                      _timePicker('秒', seconds, 59, (v) => setState(() => seconds = v)),
-                    ],
-                  );
-                },
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _timePicker('时', hours, 23, (v) => setState(() => hours = v)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(':', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  ),
+                  _timePicker('分', minutes, 59, (v) => setState(() => minutes = v)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(':', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  ),
+                  _timePicker('秒', seconds, 59, (v) => setState(() => seconds = v)),
+                ],
               ),
               const SizedBox(height: 16),
               const Text('颜色:', style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  // 计算每行显示几个颜色，实现均衡分布
-                  final itemWidth = 36.0 + 8.0; // 颜色球宽度 + 间距
-                  final maxPerRow = (constraints.maxWidth / itemWidth).floor().clamp(1, 8);
-                  final rows = (colors.length / maxPerRow).ceil();
-                  final itemsPerRow = (colors.length / rows).ceil();
-
-                  return Column(
-                    children: List.generate(rows, (rowIndex) {
-                      final start = rowIndex * itemsPerRow;
-                      final end = (start + itemsPerRow).clamp(0, colors.length);
-                      final rowColors = colors.sublist(start, end);
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: rowColors.map((c) {
-                            final isSelected = c == selectedColor;
-                            return GestureDetector(
-                              onTap: () => setState(() => selectedColor = c),
-                              child: Container(
-                                width: 36, height: 36,
-                                decoration: BoxDecoration(
-                                  color: Color(int.parse(c.replaceFirst('#', '0xFF'))),
-                                  shape: BoxShape.circle,
-                                  border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
-                                ),
-                              ),
-                            );
-                          }).toList(),
+              const SizedBox(height: 12),
+              Center(
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: colors.map((c) {
+                    final isSelected = c == selectedColor;
+                    return GestureDetector(
+                      onTap: () => setState(() => selectedColor = c),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Color(int.parse(c.replaceFirst('#', '0xFF'))),
+                          shape: BoxShape.circle,
+                          border: isSelected
+                              ? Border.all(color: Colors.black, width: 3)
+                              : null,
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
                         ),
-                      );
-                    }),
-                  );
-                },
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
                   onPressed: () {
                     final provider = context.read<LabClockProvider>();
@@ -513,7 +651,12 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
                     }
                     Navigator.pop(ctx);
                   },
-                  child: Text(clock == null ? '添加' : '保存'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF007AFF),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(clock == null ? '添加' : '保存', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -528,15 +671,15 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12)),
-        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93))),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 80,
-          width: 50,
+          height: 100,
+          width: 60,
           child: ListWheelScrollView.useDelegate(
-            itemExtent: 28,
-            perspective: 0.003,
-            diameterRatio: 1.2,
+            itemExtent: 40,
+            perspective: 0.005,
+            diameterRatio: 1.5,
             physics: const FixedExtentScrollPhysics(),
             controller: FixedExtentScrollController(initialItem: value),
             onSelectedItemChanged: (index) => onChanged(index),
@@ -548,9 +691,9 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
                   child: Text(
                     index.toString().padLeft(2, '0'),
                     style: TextStyle(
-                      fontSize: isSelected ? 18 : 14,
+                      fontSize: isSelected ? 24 : 16,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.black : Colors.grey,
+                      color: isSelected ? Colors.black : const Color(0xFFC7C7CC),
                     ),
                   ),
                 );
@@ -563,6 +706,97 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
   }
 }
 
+/// 波浪线画笔
+class _WaveLinePainter extends CustomPainter {
+  final double waveAnimation;
+  final bool isDragging;
+  final Color color;
+
+  _WaveLinePainter({
+    required this.waveAnimation,
+    required this.isDragging,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = isDragging ? color : color.withOpacity(0.4)
+      ..strokeWidth = isDragging ? 3 : 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+
+    // 绘制波浪线
+    final waveHeight = isDragging ? 12.0 : 8.0;
+    final waveLength = size.width / 3;
+
+    path.moveTo(0, size.height / 2);
+
+    for (double x = 0; x <= size.width; x += 5) {
+      final normalizedX = x / size.width;
+      final wavePhase = waveAnimation + (normalizedX * 4 * math.pi);
+      final yOffset = math.sin(wavePhase) * waveHeight;
+
+      // 在1/3和2/3位置添加磁吸点效果
+      final snapEffect = _getSnapEffect(normalizedX);
+      final snapYOffset = snapEffect * math.sin(waveAnimation * 2) * 6;
+
+      path.lineTo(x, size.height / 2 + yOffset + snapYOffset);
+    }
+
+    canvas.drawPath(path, paint);
+
+    // 绘制磁吸点指示器
+    _drawSnapPoints(canvas, size);
+  }
+
+  double _getSnapEffect(double normalizedX) {
+    // 在1/3和2/3位置有更强的波浪效果
+    const snapOneThird = 1.0 / 3.0;
+    const snapTwoThird = 2.0 / 3.0;
+
+    final distToFirst = (normalizedX - snapOneThird).abs();
+    final distToSecond = (normalizedX - snapTwoThird).abs();
+
+    if (distToFirst < 0.1) {
+      return (1.0 - distToFirst / 0.1);
+    } else if (distToSecond < 0.1) {
+      return (1.0 - distToSecond / 0.1);
+    }
+    return 0.0;
+  }
+
+  void _drawSnapPoints(Canvas canvas, Size size) {
+    final dotPaint = Paint()
+      ..color = color.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+
+    // 在1/3、2/3、1位置绘制小点
+    final snapPoints = [1.0 / 3.0, 2.0 / 3.0, 1.0];
+
+    for (int i = 0; i < snapPoints.length; i++) {
+      final x = snapPoints[i] * size.width;
+
+      // 绘制小圆点
+      canvas.drawCircle(
+        Offset(x, size.height / 2),
+        isDragging ? 4.0 : 3.0,
+        dotPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WaveLinePainter oldDelegate) {
+    return waveAnimation != oldDelegate.waveAnimation ||
+        isDragging != oldDelegate.isDragging ||
+        color != oldDelegate.color;
+  }
+}
+
+/// 时钟卡片
 class _ClockCard extends StatelessWidget {
   final LabClock clock;
   final VoidCallback onTap;
@@ -582,22 +816,22 @@ class _ClockCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final clockColor = Color(int.parse(clock.color?.replaceFirst('#', '0xFF') ?? '0xFF2196F3'));
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return Container(
+      decoration: BoxDecoration(
+        color: clockColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: clockColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
       child: InkWell(
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [clockColor.withOpacity(0.1), clockColor.withOpacity(0.05)],
-            ),
-          ),
-          padding: const EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -605,37 +839,74 @@ class _ClockCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(clock.title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      clock.title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF000000),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   GestureDetector(
                     onTap: onDelete,
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.close, size: 20, color: Colors.red.withOpacity(0.7)),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: clockColor.withOpacity(0.6),
+                      ),
                     ),
                   ),
                 ],
               ),
               // 描述
               if (clock.description.isNotEmpty)
-                Text(clock.description, style: theme.textTheme.bodySmall?.copyWith(fontSize: 10, color: theme.colorScheme.onSurface.withOpacity(0.5)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    clock.description,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF8E8E93),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               const Spacer(),
               // 时间显示
               Center(
-                child: Text(_formatTime(clock.remainingSeconds), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: clockColor)),
+                child: Text(
+                  _formatTime(clock.remainingSeconds),
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: clockColor,
+                    letterSpacing: -1,
+                  ),
+                ),
               ),
               const Spacer(),
-              // 按钮
+              // 控制按钮
               Center(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    GestureDetector(
+                    _ControlButton(
+                      icon: clock.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      color: clockColor,
                       onTap: clock.isRunning ? onPause : onStart,
-                      child: Icon(clock.isRunning ? Icons.pause_circle : Icons.play_circle, size: 28, color: clockColor),
                     ),
-                    const SizedBox(width: 16),
-                    GestureDetector(onTap: onReset, child: Icon(Icons.refresh, size: 24, color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                    const SizedBox(width: 12),
+                    _ControlButton(
+                      icon: Icons.refresh_rounded,
+                      color: const Color(0xFF8E8E93),
+                      onTap: onReset,
+                    ),
                   ],
                 ),
               ),
@@ -651,6 +922,34 @@ class _ClockCard extends StatelessWidget {
     final m = (seconds % 3600) ~/ 60;
     final s = seconds % 60;
     return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+class _ControlButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ControlButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 24),
+      ),
+    );
   }
 }
 
