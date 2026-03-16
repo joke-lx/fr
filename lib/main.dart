@@ -28,7 +28,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => MessageProvider()),
         ChangeNotifierProvider(create: (_) => FriendProvider()),
-        ChangeNotifierProvider(create: (_) => NoteProvider()),
         ChangeNotifierProvider(create: (_) => LabNoteProvider()),
         ChangeNotifierProxyProvider<UserProvider, ChatSessionProvider>(
           create: (_) => ChatSessionProvider(),
