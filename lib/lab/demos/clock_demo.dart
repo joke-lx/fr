@@ -61,35 +61,23 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          if (notification is ScrollUpdateNotification) {
-            // 当滚动到最顶部时，允许下拉展开抽屉
-            if (_scrollController.position.pixels <= 0) {
-              final delta = notification.scrollDelta ?? 0;
-              if (delta < 0) {
-                // 向下拉
-                setState(() {
-                  _scrollOffset = (_scrollOffset - delta).clamp(0, 300);
-                });
-              }
-            }
+      body: GestureDetector(
+        onVerticalDragUpdate: (details) {
+          setState(() {
+            _scrollOffset = (_scrollOffset - details.delta.dy).clamp(0, 300);
+          });
+        },
+        onVerticalDragEnd: (details) {
+          if (_scrollOffset > 80) {
+            setState(() {
+              _isDrawerOpen = true;
+            });
+          } else {
+            setState(() {
+              _scrollOffset = 0;
+              _isDrawerOpen = false;
+            });
           }
-          if (notification is ScrollEndNotification) {
-            if (_scrollController.position.pixels <= 0) {
-              if (_scrollOffset > 80) {
-                setState(() {
-                  _isDrawerOpen = true;
-                });
-              } else {
-                setState(() {
-                  _scrollOffset = 0;
-                  _isDrawerOpen = false;
-                });
-              }
-            }
-          }
-          return false;
         },
         child: Stack(
           children: [
@@ -131,6 +119,27 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
                 );
               },
             ),
+            // 顶部恒定小指示器 - 提示可以下拉
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 24,
+                color: Colors.transparent,
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: _isDrawerOpen ? 0 : 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: _isDrawerOpen ? Colors.transparent : Colors.grey[400],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+            ),
             // 顶部抽屉
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -143,13 +152,33 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
                       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
                       child: Column(
                         children: [
-                          Container(
-                            margin: const EdgeInsets.symmetric(vertical: 12),
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[400],
-                              borderRadius: BorderRadius.circular(2),
+                          // 拖动手柄
+                          GestureDetector(
+                            onVerticalDragUpdate: (details) {
+                              setState(() {
+                                _scrollOffset = (_scrollOffset - details.delta.dy).clamp(0, 300);
+                              });
+                            },
+                            onVerticalDragEnd: (details) {
+                              if (_scrollOffset > 80) {
+                                setState(() {
+                                  _isDrawerOpen = true;
+                                });
+                              } else {
+                                setState(() {
+                                  _scrollOffset = 0;
+                                  _isDrawerOpen = false;
+                                });
+                              }
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(top: 12),
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[400],
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
                           ),
                           Padding(
