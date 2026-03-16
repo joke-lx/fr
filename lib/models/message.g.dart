@@ -37,6 +37,8 @@ Map<String, dynamic> _$MessageToJson(Message instance) => <String, dynamic>{
 const _$MessageTypeEnumMap = {
   MessageType.text: 'text',
   MessageType.image: 'image',
+  MessageType.video: 'video',
+  MessageType.audio: 'audio',
   MessageType.file: 'file',
   MessageType.system: 'system',
 };

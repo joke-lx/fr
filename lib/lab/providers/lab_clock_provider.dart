@@ -31,13 +31,13 @@ class LabClockProvider with ChangeNotifier {
         hasChanges = true;
       } else if (clock.isRunning && clock.remainingSeconds <= 0) {
         // 倒计时结束，自动暂停
-        _clocks[i] = clock.copyWith(isRunning: false, remainingSeconds: 0);
+        _clocks[i] = clock.copyWith(isRunning: false, remainingSeconds: 0, startTime: null);
         hasChanges = true;
+        _saveClocks(); // 保存结束状态
       }
     }
     if (hasChanges) {
       notifyListeners();
-      _saveClocks(); // 实时保存状态
     }
   }
 
@@ -48,6 +48,22 @@ class LabClockProvider with ChangeNotifier {
       if (clocksJson != null) {
         final List<dynamic> clocksList = json.decode(clocksJson);
         _clocks = clocksList.map((e) => LabClock.fromJson(e)).toList();
+
+        // 根据startTime计算当前剩余时间
+        final now = DateTime.now();
+        for (int i = 0; i < _clocks.length; i++) {
+          final clock = _clocks[i];
+          if (clock.isRunning && clock.startTime != null) {
+            final elapsed = now.difference(clock.startTime!).inSeconds;
+            final newRemaining = (clock.durationSeconds ?? 0) - elapsed;
+            if (newRemaining <= 0) {
+              // 已过期
+              _clocks[i] = clock.copyWith(isRunning: false, remainingSeconds: 0, startTime: null);
+            } else {
+              _clocks[i] = clock.copyWith(remainingSeconds: newRemaining);
+            }
+          }
+        }
       }
       notifyListeners();
     } catch (e) {
@@ -120,6 +136,7 @@ class LabClockProvider with ChangeNotifier {
       _clocks[index] = clock.copyWith(
         isRunning: true,
         remainingSeconds: clock.durationSeconds ?? 0,
+        startTime: DateTime.now(),
       );
       await _saveClocks();
       notifyListeners();
@@ -130,7 +147,7 @@ class LabClockProvider with ChangeNotifier {
     final index = _clocks.indexWhere((c) => c.id == id);
     if (index != -1) {
       final clock = _clocks[index];
-      _clocks[index] = clock.copyWith(isRunning: false);
+      _clocks[index] = clock.copyWith(isRunning: false, startTime: null);
       await _saveClocks();
       notifyListeners();
     }

@@ -13,6 +13,7 @@ class LabClock {
   final bool isRunning;
   final int remainingSeconds; // 剩余秒数
   final String? color;
+  final DateTime? startTime; // 开始倒计时的时间
 
   LabClock({
     required this.id,
@@ -24,6 +25,7 @@ class LabClock {
     this.isRunning = false,
     this.remainingSeconds = 0,
     this.color,
+    this.startTime,
   });
 
   factory LabClock.fromJson(Map<String, dynamic> json) => _$LabClockFromJson(json);
@@ -40,6 +42,7 @@ class LabClock {
     bool? isRunning,
     int? remainingSeconds,
     String? color,
+    DateTime? startTime,
   }) {
     return LabClock(
       id: id ?? this.id,
@@ -51,6 +54,7 @@ class LabClock {
       isRunning: isRunning ?? this.isRunning,
       remainingSeconds: remainingSeconds ?? this.remainingSeconds,
       color: color ?? this.color,
+      startTime: startTime ?? this.startTime,
     );
   }
 }
