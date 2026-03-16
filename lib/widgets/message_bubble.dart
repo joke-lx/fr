@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
@@ -81,14 +83,7 @@ class MessageBubble extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          message.content,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: isMe
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.onSurface,
-                          ),
-                        ),
+                        _buildMessageContent(context, theme),
                         const SizedBox(height: 4),
                         Text(
                           timeText,
@@ -157,6 +152,293 @@ class MessageBubble extends StatelessWidget {
             color: theme.colorScheme.error,
           ),
         );
+    }
+  }
+
+  Widget _buildMessageContent(BuildContext context, ThemeData theme) {
+    switch (message.type) {
+      case MessageType.image:
+        return _buildImageMessage(context, theme);
+      case MessageType.video:
+        return _buildVideoMessage(context, theme);
+      case MessageType.audio:
+        return _buildAudioMessage(context, theme);
+      case MessageType.file:
+        return _buildFileMessage(context, theme);
+      case MessageType.text:
+      case MessageType.system:
+        return Text(
+          message.content,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: isMe
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurface,
+          ),
+        );
+    }
+  }
+
+  Widget _buildImageMessage(BuildContext context, ThemeData theme) {
+    final filePath = message.content;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: kIsWeb
+          ? (filePath.startsWith('data:') == true
+              ? Image.network(
+                  filePath,
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildImageError(theme);
+                  },
+                )
+              : Image.file(
+                  File(filePath),
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildImageError(theme);
+                  },
+                ))
+          : Image.file(
+              File(filePath),
+              width: 200,
+              height: 200,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildImageError(theme);
+              },
+            ),
+    );
+  }
+
+  Widget _buildImageError(ThemeData theme) {
+    return Container(
+      width: 200,
+      height: 200,
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.broken_image,
+            size: 48,
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '图片加载失败',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.5),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoMessage(BuildContext context, ThemeData theme) {
+    return Container(
+      width: 200,
+      height: 150,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 视频封面（如果有本地文件，显示第一帧）
+          if (kIsWeb)
+            const Icon(Icons.videocam, size: 48, color: Colors.white70)
+          else
+            Image.file(
+              File(message.content),
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(Icons.videocam, size: 48, color: Colors.white70);
+              },
+            ),
+          const Icon(
+            Icons.play_circle_filled,
+            color: Colors.white70,
+            size: 48,
+          ),
+          Positioned(
+            bottom: 8,
+            left: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                '视频消息',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAudioMessage(BuildContext context, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isMe
+            ? theme.colorScheme.primary.withOpacity(0.2)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.play_circle_filled,
+            color: isMe
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.primary,
+            size: 32,
+          ),
+          const SizedBox(width: 8),
+          // 模拟音频波形
+          _buildAudioWave(theme),
+          const SizedBox(width: 8),
+          Text(
+            '语音',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isMe
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAudioWave(ThemeData theme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (index) {
+        return Container(
+          width: 3,
+          height: 12 + (index * 4).toDouble() % 12,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: BoxDecoration(
+            color: (isMe
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.primary)
+                .withOpacity(0.6),
+            borderRadius: BorderRadius.circular(1.5),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildFileMessage(BuildContext context, ThemeData theme) {
+    final fileName = message.content.split('/').last;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(maxWidth: 220),
+      decoration: BoxDecoration(
+        color: isMe
+            ? theme.colorScheme.primary.withOpacity(0.2)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _getFileIcon(fileName),
+            color: isMe
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.primary,
+            size: 32,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  fileName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isMe
+                        ? theme.colorScheme.onPrimary
+                        : theme.colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '文件',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: (isMe
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.onSurface)
+                        .withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getFileIcon(String fileName) {
+    final ext = fileName.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      case 'zip':
+      case 'rar':
+        return Icons.archive;
+      case 'txt':
+        return Icons.text_snippet;
+      case 'mp3':
+      case 'wav':
+      case 'aac':
+        return Icons.music_note;
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+      case 'mkv':
+        return Icons.video_library;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp':
+        return Icons.image;
+      default:
+        return Icons.insert_drive_file;
     }
   }
 }

@@ -110,18 +110,19 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
-  Future<void> _handleImageSend(String? imagePath) async {
+  Future<void> _handleImageSend(String? imagePath, {MessageType type = MessageType.text}) async {
     if (imagePath == null) return;
 
     final userProvider = context.read<UserProvider>();
     final currentUser = userProvider.currentUser!;
     final sessionProvider = context.read<ChatSessionProvider>();
 
-    // 发送图片消息
+    // 发送图片/文件/语音消息
     await _messageProvider.sendMessage(
       senderId: currentUser.id,
       receiverId: widget.friend.id,
       content: imagePath,
+      type: type,
     );
 
     await sessionProvider.refreshSessions(currentUser.id);

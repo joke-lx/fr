@@ -2,14 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
-import '../widgets/emoji_picker_widget.dart';
-import '../widgets/message_preview.dart';
+import 'emoji_picker_widget.dart';
+import 'message_preview.dart';
+import '../models/message.dart';
 import '../services/media_service.dart';
 import '../services/audio_recording_service.dart';
 
 class ChatInputField extends StatefulWidget {
   final Function(String content) onSend;
-  final Function(String? imagePath)? onImageSend;
+  final Function(String? filePath, {MessageType type})? onImageSend;
   final bool isLoading;
   final String hintText;
   final int maxLines;
@@ -129,10 +130,16 @@ class _ChatInputFieldState extends State<ChatInputField> {
         _controller.text = preview.content;
         break;
       case PreviewType.image:
+        widget.onImageSend?.call(preview.filePath, type: MessageType.image);
+        break;
       case PreviewType.video:
+        widget.onImageSend?.call(preview.filePath, type: MessageType.video);
+        break;
       case PreviewType.audio:
+        widget.onImageSend?.call(preview.filePath, type: MessageType.audio);
+        break;
       case PreviewType.file:
-        widget.onImageSend?.call(preview.filePath);
+        widget.onImageSend?.call(preview.filePath, type: MessageType.file);
         break;
     }
     _removePreview(index);

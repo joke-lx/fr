@@ -2,7 +2,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'message.g.dart';
 
-enum MessageType { text, image, file, system }
+enum MessageType { text, image, video, audio, file, system }
 
 enum MessageStatus { sending, sent, read, failed }
 
