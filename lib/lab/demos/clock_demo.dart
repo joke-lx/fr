@@ -27,8 +27,12 @@ class _ClockDemoPage extends StatefulWidget {
   State<_ClockDemoPage> createState() => _ClockDemoPageState();
 }
 
-class _ClockDemoPageState extends State<_ClockDemoPage> {
-  double _dragExtent = 0;
+class _ClockDemoPageState extends State<_ClockDemoPage> with SingleTickerProviderStateMixin {
+  double _offsetY = 0;
+  static const double _drawerHeight = 400;
+  late AnimationController _animController;
+  late Animation<double> _anim;
+  bool _isDrawerOpen = false;
 
   @override
   void initState() {
@@ -36,6 +40,47 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LabClockProvider>().loadClocks();
     });
+
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _anim = Tween<double>(begin: 0, end: _drawerHeight).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+    );
+    _animController.addListener(() {
+      setState(() {
+        _offsetY = _anim.value;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    _offsetY += details.delta.dy;
+    if (_offsetY < 0) _offsetY = 0;
+    if (_offsetY > _drawerHeight) _offsetY = _drawerHeight;
+    setState(() {});
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    if (_offsetY > _drawerHeight / 2) {
+      _animController.forward();
+      _isDrawerOpen = true;
+    } else {
+      _animController.reverse();
+      _isDrawerOpen = false;
+    }
+  }
+
+  void _closeDrawer() {
+    _animController.reverse();
+    _isDrawerOpen = false;
   }
 
   @override
@@ -43,67 +88,120 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
     return SafeArea(
       child: Stack(
         children: [
-          // 主内容区域
-          Column(
-            children: [
-              const SizedBox(height: 30), // 为下拉区域留空间
-              Expanded(
-                child: Consumer<LabClockProvider>(
-                  builder: (context, provider, child) {
-                    if (provider.clocks.isEmpty) {
-                      return _buildEmpty(context);
-                    }
-                    return _buildClockGrid(context, provider.clocks);
-                  },
+          // 顶部抽屉页面
+          if (_offsetY > 0)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: _drawerHeight,
+              child: GestureDetector(
+                onVerticalDragUpdate: (details) {
+                  _offsetY += details.delta.dy;
+                  if (_offsetY < 0) _offsetY = 0;
+                  if (_offsetY > _drawerHeight) _offsetY = _drawerHeight;
+                  setState(() {});
+                },
+                onVerticalDragEnd: (details) {
+                  if (_offsetY < _drawerHeight / 2) {
+                    _closeDrawer();
+                  }
+                },
+                child: Material(
+                  color: Theme.of(context).colorScheme.surface,
+                  elevation: 4,
+                  child: Column(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[400],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.history, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text('使用记录', style: Theme.of(context).textTheme.titleLarge),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      Expanded(
+                        child: Consumer<LabClockProvider>(
+                          builder: (context, provider, child) {
+                            final records = provider.records;
+                            if (records.isEmpty) {
+                              return Center(child: Text('暂无记录', style: TextStyle(color: Theme.of(context).colorScheme.outline)));
+                            }
+                            return ListView.builder(
+                              itemCount: records.length,
+                              itemBuilder: (_, index) => _buildRecordItem(context, records[index]),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
+            ),
+
+          // 主页面 - 随下拉移动
+          Transform.translate(
+            offset: Offset(0, _offsetY),
+            child: GestureDetector(
+              onVerticalDragUpdate: _onDragUpdate,
+              onVerticalDragEnd: _onDragEnd,
+              child: Column(
+                children: [
+                  const SizedBox(height: 30),
+                  Expanded(
+                    child: Consumer<LabClockProvider>(
+                      builder: (context, provider, child) {
+                        if (provider.clocks.isEmpty) {
+                          return _buildEmpty(context);
+                        }
+                        return _buildClockGrid(context, provider.clocks);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          // 深下拉触发区域 - 始终在最上面
+
+          // 下拉提示区域
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: GestureDetector(
-              onVerticalDragUpdate: (details) {
-                setState(() {
-                  _dragExtent += details.delta.dy;
-                });
-              },
-              onVerticalDragEnd: (details) {
-                if (_dragExtent > 50) {
-                  _showRecordsPanel(context);
-                }
-                setState(() => _dragExtent = 0);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 100),
-                height: 30 + _dragExtent.clamp(0, 100),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
+              onVerticalDragUpdate: _onDragUpdate,
+              onVerticalDragEnd: _onDragEnd,
+              child: Container(
+                height: 30,
+                color: Colors.transparent,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Icon(
-                      Icons.keyboard_arrow_down,
+                      _isDrawerOpen ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                       size: 20,
-                      color: _dragExtent > 20
+                      color: _offsetY > 10
                           ? Theme.of(context).colorScheme.primary
                           : Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
                     ),
                     Text(
-                      '下拉查看记录',
+                      _isDrawerOpen ? '上拉关闭' : '下拉查看记录',
                       style: TextStyle(
                         fontSize: 10,
-                        color: _dragExtent > 20
+                        color: _offsetY > 10
                             ? Theme.of(context).colorScheme.primary
                             : Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
                       ),
@@ -114,6 +212,7 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
               ),
             ),
           ),
+
           // FAB
           Positioned(
             right: 16,
@@ -126,99 +225,6 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
         ],
       ),
     );
-  }
-
-  void _showRecordsPanel(BuildContext context) {
-    final records = context.read<LabClockProvider>().records;
-    final overlay = Navigator.of(context).overlay;
-    if (overlay == null) return;
-
-    final animationController = AnimationController(
-      vsync: Navigator.of(context),
-      duration: const Duration(milliseconds: 300),
-    );
-
-    late OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (ctx) => Stack(
-        children: [
-          // 遮罩
-          GestureDetector(
-            onTap: () {
-              animationController.reverse().then((_) => entry.remove());
-            },
-            child: AnimatedBuilder(
-              animation: animationController,
-              builder: (_, __) => Container(
-                color: Colors.black54.withValues(alpha: animationController.value * 0.5),
-              ),
-            ),
-          ),
-          // 顶部抽屉
-          SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, -1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animationController,
-              curve: Curves.easeOutCubic,
-            )),
-            child: SafeArea(
-              bottom: false,
-              child: Container(
-                height: MediaQuery.of(context).size.height * 0.6,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                ),
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onVerticalDragEnd: (details) {
-                        if (details.primaryVelocity != null && details.primaryVelocity! > 500) {
-                          animationController.reverse().then((_) => entry.remove());
-                        }
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[400],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Icon(Icons.history, color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 8),
-                          Text('使用记录', style: Theme.of(context).textTheme.titleLarge),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: records.isEmpty
-                          ? Center(child: Text('暂无记录', style: TextStyle(color: Theme.of(context).colorScheme.outline)))
-                          : ListView.builder(
-                              itemCount: records.length,
-                              itemBuilder: (_, index) => _buildRecordItem(context, records[index]),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    overlay.insert(entry);
-    animationController.forward();
   }
 
   Widget _buildRecordItem(BuildContext context, LabClockRecord record) {
