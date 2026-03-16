@@ -52,7 +52,8 @@ class MessagePreviewWidget extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: 100,
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
@@ -65,13 +66,18 @@ class MessagePreviewWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 预览内容
-          _buildPreviewContent(context),
-          const SizedBox(height: 12),
+          SizedBox(
+            width: 84,
+            height: 60,
+            child: _buildPreviewContent(context),
+          ),
+          const SizedBox(height: 8),
           // 操作按钮
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.close, size: 20),
+                icon: const Icon(Icons.close, size: 16),
                 onPressed: onRemove,
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
                 padding: EdgeInsets.zero,

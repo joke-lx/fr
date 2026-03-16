@@ -385,19 +385,28 @@ class _ChatInputFieldState extends State<ChatInputField> {
           Container(
             height: 120,
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _previews.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: MessagePreviewWidget(
-                    preview: _previews[index],
-                    onRemove: () => _removePreview(index),
-                    onSend: () => _sendPreview(index),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _previews.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: SizedBox(
+                          width: 100,
+                          child: MessagePreviewWidget(
+                            preview: _previews[index],
+                            onRemove: () => _removePreview(index),
+                            onSend: () => _sendPreview(index),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+              ],
             ),
           ),
 
