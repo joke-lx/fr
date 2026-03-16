@@ -56,6 +56,13 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
         _scrollOffset = -offset;
       });
     }
+    // 滚动时自动关闭抽屉
+    if (_isDrawerOpen && offset > 0) {
+      setState(() {
+        _isDrawerOpen = false;
+        _scrollOffset = 0;
+      });
+    }
   }
 
   @override
