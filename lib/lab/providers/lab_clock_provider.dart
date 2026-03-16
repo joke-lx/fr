@@ -245,6 +245,18 @@ class LabClockProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteRecord(String id) async {
+    _records.removeWhere((r) => r.id == id);
+    await _saveRecords();
+    notifyListeners();
+  }
+
+  Future<void> clearRecords() async {
+    _records.clear();
+    await _saveRecords();
+    notifyListeners();
+  }
+
   LabClock? getClockById(String id) {
     try {
       return _clocks.firstWhere((c) => c.id == id);

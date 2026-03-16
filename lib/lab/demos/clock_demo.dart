@@ -190,6 +190,18 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
                                 const SizedBox(width: 8),
                                 Text('使用记录', style: Theme.of(context).textTheme.titleLarge),
                                 const Spacer(),
+                                Consumer<LabClockProvider>(
+                                  builder: (context, provider, child) {
+                                    if (provider.records.isEmpty) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return GestureDetector(
+                                      onTap: () => _showClearRecordsDialog(context),
+                                      child: const Icon(Icons.delete_sweep, color: Colors.red),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 8),
                                 GestureDetector(
                                   onTap: () => setState(() {
                                     _isDrawerOpen = false;
@@ -301,6 +313,26 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
     );
   }
 
+  void _showClearRecordsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清空记录'),
+        content: const Text('确定清空所有使用记录吗？此操作不可恢复。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(
+            onPressed: () {
+              context.read<LabClockProvider>().clearRecords();
+              Navigator.pop(ctx);
+            },
+            child: const Text('清空', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRecordItem(BuildContext context, LabClockRecord record) {
     final dateFormat = DateFormat('MM-dd HH:mm');
     final actualDuration = record.endTime != null
@@ -308,20 +340,33 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
         : 0;
     final durationStr = _formatDuration(actualDuration);
 
-    return ListTile(
-      leading: Icon(
-        record.completed ? Icons.check_circle : Icons.pause_circle,
-        color: record.completed ? Colors.green : Colors.orange,
+    return Dismissible(
+      key: Key(record.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
-      title: Text(record.clockTitle),
-      subtitle: Text(
-        '${dateFormat.format(record.startTime)} • 计划: ${_formatDuration(record.durationSeconds)}',
-      ),
-      trailing: Text(
-        '实际: $durationStr',
-        style: TextStyle(
+      onDismissed: (direction) {
+        context.read<LabClockProvider>().deleteRecord(record.id);
+      },
+      child: ListTile(
+        leading: Icon(
+          record.completed ? Icons.check_circle : Icons.pause_circle,
           color: record.completed ? Colors.green : Colors.orange,
-          fontWeight: FontWeight.bold,
+        ),
+        title: Text(record.clockTitle),
+        subtitle: Text(
+          '${dateFormat.format(record.startTime)} • 计划: ${_formatDuration(record.durationSeconds)}',
+        ),
+        trailing: Text(
+          '实际: $durationStr',
+          style: TextStyle(
+            color: record.completed ? Colors.green : Colors.orange,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
