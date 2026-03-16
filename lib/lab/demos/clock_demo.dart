@@ -40,12 +40,6 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('时钟'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _addClock(context),
-          ),
-        ],
       ),
       body: Consumer<LabClockProvider>(
         builder: (context, provider, child) {

@@ -43,12 +43,6 @@ class _NotebookDemoPageState extends State<_NotebookDemoPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('笔记本'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _createNote(context),
-          ),
-        ],
       ),
       body: Consumer<LabNoteProvider>(
         builder: (context, provider, child) {
