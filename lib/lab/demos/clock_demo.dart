@@ -89,7 +89,7 @@ class _ClockDemoPageState extends State<_ClockDemoPage> {
         crossAxisCount: 2,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: 0.85,
+        childAspectRatio: 1.0,
       ),
       itemCount: clocks.length,
       itemBuilder: (context, index) => _ClockCard(
@@ -282,10 +282,14 @@ class _ClockCard extends StatelessWidget {
                   Expanded(
                     child: Text(clock.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
-                  PopupMenuButton<String>(
-                    onSelected: (v) { if (v == 'delete') onDelete(); },
-                    itemBuilder: (_) => [const PopupMenuItem(value: 'delete', child: Text('删除'))],
-                    icon: const Icon(Icons.more_vert, size: 20),
+                  SizedBox(
+                    width: 24,
+                    child: PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      onSelected: (v) { if (v == 'delete') onDelete(); },
+                      itemBuilder: (_) => [const PopupMenuItem(value: 'delete', child: Text('删除'))],
+                      icon: const Icon(Icons.more_vert, size: 18),
+                    ),
                   ),
                 ],
               ),
@@ -295,19 +299,22 @@ class _ClockCard extends StatelessWidget {
               Center(
                 child: Text(
                   _formatTime(clock.remainingSeconds),
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: clockColor, fontFamily: 'monospace'),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: clockColor, fontFamily: 'monospace'),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 4),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(clock.isRunning ? Icons.pause : Icons.play_arrow),
+                    icon: Icon(clock.isRunning ? Icons.pause : Icons.play_arrow, size: 24),
                     color: clockColor,
                     onPressed: clock.isRunning ? onPause : onStart,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
                   ),
-                  IconButton(icon: const Icon(Icons.refresh), onPressed: onReset),
+                  const SizedBox(width: 16),
+                  IconButton(icon: const Icon(Icons.refresh, size: 24), onPressed: onReset, padding: const EdgeInsets.all(4), constraints: const BoxConstraints()),
                 ],
               ),
             ],
