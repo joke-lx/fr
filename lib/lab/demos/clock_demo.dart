@@ -29,7 +29,7 @@ class _ClockDemoPage extends StatefulWidget {
   State<_ClockDemoPage> createState() => _ClockDemoPageState();
 }
 
-class _ClockDemoPageState extends State<_ClockDemoPage> with SingleTickerProviderStateMixin {
+class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderStateMixin {
   // 波浪分割线位置：0.0 = 时钟全屏，1.0 = 记录全屏
   double _splitPosition = 0.65; // 默认时钟占65%，记录占35%
   bool _isDragging = false;
