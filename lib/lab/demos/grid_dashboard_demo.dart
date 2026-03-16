@@ -208,13 +208,15 @@ class _GridDashboardPageState extends State<_GridDashboardPage> {
       ['15:00', '自习', '自习', '自习', '自习', '自习'],
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
+    return SizedBox(
+      height: 380, // 固定高度避免溢出
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
           // 表头
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -289,6 +291,7 @@ class _GridDashboardPageState extends State<_GridDashboardPage> {
           }),
         ],
       ),
+      ),
     );
   }
 
@@ -337,7 +340,7 @@ class _DashboardCard extends StatelessWidget {
             ],
           ),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -345,14 +348,9 @@ class _DashboardCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(data.icon, color: data.color, size: 24),
+                Icon(data.icon, color: data.color, size: 20),
                 if (data.span > 1)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: data.color.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                  Flexible(
                     child: Text(
                       data.title,
                       style: TextStyle(
@@ -360,30 +358,36 @@ class _DashboardCard extends StatelessWidget {
                         color: data.color,
                         fontWeight: FontWeight.bold,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
               ],
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data.value,
-                  style: TextStyle(
-                    fontSize: data.span > 1 ? 28 : 20,
-                    fontWeight: FontWeight.bold,
-                    color: data.color,
-                  ),
-                ),
-                if (data.span == 1)
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    data.title,
+                    data.value,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                      fontSize: data.span > 1 ? 24 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: data.color,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  if (data.span == 1)
+                    Text(
+                      data.title,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
           ],
         ),
