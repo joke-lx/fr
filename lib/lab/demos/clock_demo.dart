@@ -29,7 +29,7 @@ class _ClockDemoPage extends StatefulWidget {
 
 class _ClockDemoPageState extends State<_ClockDemoPage> with SingleTickerProviderStateMixin {
   double _offsetY = 0;
-  static const double _drawerHeight = 400;
+  static const double _drawerHeight = 350;
   late AnimationController _animController;
   late Animation<double> _anim;
   bool _isDrawerOpen = false;
@@ -62,10 +62,19 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with SingleTickerProvide
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    _offsetY += details.delta.dy;
-    if (_offsetY < 0) _offsetY = 0;
-    if (_offsetY > _drawerHeight) _offsetY = _drawerHeight;
-    setState(() {});
+    // 抽屉打开时，向上拖可以关闭
+    if (_isDrawerOpen && details.delta.dy < 0) {
+      _offsetY += details.delta.dy;
+      if (_offsetY < 0) _offsetY = 0;
+      setState(() {});
+      return;
+    }
+    // 抽屉关闭时，向下拖可以打开
+    if (!_isDrawerOpen && details.delta.dy > 0) {
+      _offsetY += details.delta.dy;
+      if (_offsetY > _drawerHeight) _offsetY = _drawerHeight;
+      setState(() {});
+    }
   }
 
   void _onDragEnd(DragEndDetails details) {
@@ -89,27 +98,16 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with SingleTickerProvide
       child: Stack(
         children: [
           // 顶部抽屉页面
-          if (_offsetY > 0)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: _drawerHeight,
-              child: GestureDetector(
-                onVerticalDragUpdate: (details) {
-                  _offsetY += details.delta.dy;
-                  if (_offsetY < 0) _offsetY = 0;
-                  if (_offsetY > _drawerHeight) _offsetY = _drawerHeight;
-                  setState(() {});
-                },
-                onVerticalDragEnd: (details) {
-                  if (_offsetY < _drawerHeight / 2) {
-                    _closeDrawer();
-                  }
-                },
-                child: Material(
-                  color: Theme.of(context).colorScheme.surface,
-                  elevation: 4,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: _drawerHeight,
+            child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Column(
                     children: [
                       Container(
