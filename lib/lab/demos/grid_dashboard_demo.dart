@@ -173,7 +173,7 @@ class _GridDashboardPageState extends State<_GridDashboardPage> {
   /// 交错网格 - 类似 Pinterest/瀑布流
   Widget _buildStaggeredGrid() {
     return SizedBox(
-      height: 400, // 固定高度避免溢出
+      height: 480, // 增加高度避免溢出
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -181,16 +181,19 @@ class _GridDashboardPageState extends State<_GridDashboardPage> {
           crossAxisCount: 2,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
+          childAspectRatio: 1.2,
         ),
         itemCount: _dashboardItems.length,
         itemBuilder: (context, index) {
           final item = _dashboardItems[index];
-          // 让特定卡片跨行
-          final isLarge = item.span > 1;
-          return SizedBox(
-            height: isLarge ? 160 : 100,
-            child: _DashboardCard(data: item),
-          );
+          // 让特定卡片跨列
+          if (item.span > 1) {
+            return SizedBox(
+              height: 160,
+              child: _DashboardCard(data: item),
+            );
+          }
+          return _DashboardCard(data: item);
         },
       ),
     );
@@ -209,7 +212,7 @@ class _GridDashboardPageState extends State<_GridDashboardPage> {
     ];
 
     return SizedBox(
-      height: 380, // 固定高度避免溢出
+      height: 420, // 增加高度确保完全显示
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey.shade300),
