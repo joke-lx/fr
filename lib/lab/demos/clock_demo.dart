@@ -1,0 +1,330 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../lab_container.dart';
+import '../models/lab_clock.dart';
+import '../providers/lab_clock_provider.dart';
+
+/// 时钟 Demo
+class ClockDemo extends DemoPage {
+  @override
+  String get title => '时钟';
+
+  @override
+  String get description => '网格时钟，支持倒计时功能';
+
+  @override
+  Widget buildPage(BuildContext context) {
+    return const _ClockDemoPage();
+  }
+}
+
+class _ClockDemoPage extends StatefulWidget {
+  const _ClockDemoPage();
+
+  @override
+  State<_ClockDemoPage> createState() => _ClockDemoPageState();
+}
+
+class _ClockDemoPageState extends State<_ClockDemoPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LabClockProvider>().loadClocks();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('时钟'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _addClock(context),
+          ),
+        ],
+      ),
+      body: Consumer<LabClockProvider>(
+        builder: (context, provider, child) {
+          if (provider.clocks.isEmpty) {
+            return _buildEmpty(context);
+          }
+          return _buildClockGrid(context, provider.clocks);
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _addClock(context),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildEmpty(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.timer_outlined, size: 64, color: theme.colorScheme.outline),
+          const SizedBox(height: 16),
+          Text('暂无时钟', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.outline)),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: () => _addClock(context),
+            icon: const Icon(Icons.add),
+            label: const Text('添加时钟'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClockGrid(BuildContext context, List<LabClock> clocks) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        childAspectRatio: 0.85,
+      ),
+      itemCount: clocks.length,
+      itemBuilder: (context, index) => _ClockCard(
+        clock: clocks[index],
+        onTap: () => _editClock(context, clocks[index]),
+        onDelete: () => _deleteClock(context, clocks[index]),
+        onStart: () => context.read<LabClockProvider>().startCountdown(clocks[index].id),
+        onPause: () => context.read<LabClockProvider>().pauseCountdown(clocks[index].id),
+        onReset: () => context.read<LabClockProvider>().resetCountdown(clocks[index].id),
+      ),
+    );
+  }
+
+  void _addClock(BuildContext context) {
+    _showClockEditor(context, null);
+  }
+
+  void _editClock(BuildContext context, LabClock clock) {
+    _showClockEditor(context, clock);
+  }
+
+  void _deleteClock(BuildContext context, LabClock clock) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除时钟'),
+        content: Text('确定删除 "${clock.title}" 吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(
+            onPressed: () {
+              context.read<LabClockProvider>().deleteClock(clock.id);
+              Navigator.pop(ctx);
+            },
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showClockEditor(BuildContext context, LabClock? clock) {
+    final titleController = TextEditingController(text: clock?.title ?? '');
+    final descController = TextEditingController(text: clock?.description ?? '');
+    int hours = clock != null ? (clock.durationSeconds ?? 0) ~/ 3600 : 0;
+    int minutes = clock != null ? ((clock.durationSeconds ?? 0) % 3600) ~/ 60 : 5;
+    int seconds = clock != null ? (clock.durationSeconds ?? 0) % 60 : 0;
+    String selectedColor = clock?.color ?? '#2196F3';
+
+    final colors = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#795548', '#607D8B'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 16, right: 16, top: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(clock == null ? '添加时钟' : '编辑时钟', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: '标题', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: descController, decoration: const InputDecoration(labelText: '描述', border: OutlineInputBorder()), maxLines: 2),
+              const SizedBox(height: 12),
+              const Text('倒计时时长:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _timePicker('时', hours, 23, (v) => setState(() => hours = v)),
+                  const Text(' : '),
+                  _timePicker('分', minutes, 59, (v) => setState(() => minutes = v)),
+                  const Text(' : '),
+                  _timePicker('秒', seconds, 59, (v) => setState(() => seconds = v)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('颜色:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, children: colors.map((c) {
+                final isSelected = c == selectedColor;
+                return GestureDetector(
+                  onTap: () => setState(() => selectedColor = c),
+                  child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: Color(int.parse(c.replaceFirst('#', '0xFF'))),
+                      shape: BoxShape.circle,
+                      border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
+                    ),
+                  ),
+                );
+              }).toList()),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final provider = context.read<LabClockProvider>();
+                    final totalSeconds = hours * 3600 + minutes * 60 + seconds;
+                    if (clock == null) {
+                      provider.createClock(
+                        title: titleController.text.isEmpty ? '新时钟' : titleController.text,
+                        description: descController.text,
+                        durationSeconds: totalSeconds,
+                        color: selectedColor,
+                      );
+                    } else {
+                      provider.updateClock(
+                        id: clock.id,
+                        title: titleController.text,
+                        description: descController.text,
+                        durationSeconds: totalSeconds,
+                        color: selectedColor,
+                      );
+                    }
+                    Navigator.pop(ctx);
+                  },
+                  child: Text(clock == null ? '添加' : '保存'),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _timePicker(String label, int value, int max, Function(int) onChanged) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(icon: const Icon(Icons.remove, size: 16), onPressed: value > 0 ? () => onChanged(value - 1) : null),
+            Text(value.toString().padLeft(2, '0'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            IconButton(icon: const Icon(Icons.add, size: 16), onPressed: value < max ? () => onChanged(value + 1) : null),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ClockCard extends StatelessWidget {
+  final LabClock clock;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final VoidCallback onStart;
+  final VoidCallback onPause;
+  final VoidCallback onReset;
+
+  const _ClockCard({
+    required this.clock,
+    required this.onTap,
+    required this.onDelete,
+    required this.onStart,
+    required this.onPause,
+    required this.onReset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final clockColor = Color(int.parse(clock.color?.replaceFirst('#', '0xFF') ?? '0xFF2196F3'));
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [clockColor.withOpacity(0.1), clockColor.withOpacity(0.05)],
+            ),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(clock.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (v) { if (v == 'delete') onDelete(); },
+                    itemBuilder: (_) => [const PopupMenuItem(value: 'delete', child: Text('删除'))],
+                    icon: const Icon(Icons.more_vert, size: 20),
+                  ),
+                ],
+              ),
+              if (clock.description.isNotEmpty)
+                Text(clock.description, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const Spacer(),
+              Center(
+                child: Text(
+                  _formatTime(clock.remainingSeconds),
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: clockColor, fontFamily: 'monospace'),
+                ),
+              ),
+              const Spacer(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: Icon(clock.isRunning ? Icons.pause : Icons.play_arrow),
+                    color: clockColor,
+                    onPressed: clock.isRunning ? onPause : onStart,
+                  ),
+                  IconButton(icon: const Icon(Icons.refresh), onPressed: onReset),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+void registerClockDemo() {
+  demoRegistry.register(ClockDemo());
+}

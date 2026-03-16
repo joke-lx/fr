@@ -8,12 +8,15 @@ import 'screens/lab/lab_page.dart';
 import 'lab/lab_container.dart';
 import 'lab/demos/grid_dashboard_demo.dart';
 import 'lab/demos/notebook_demo.dart';
+import 'lab/demos/clock_demo.dart';
 import 'lab/providers/lab_note_provider.dart';
+import 'lab/providers/lab_clock_provider.dart';
 
 void main() {
   // 注册 Demo 页面
   registerGridDashboardDemo();
   registerNotebookDemo();
+  registerClockDemo();
 
   runApp(const MyApp());
 }
@@ -29,6 +32,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MessageProvider()),
         ChangeNotifierProvider(create: (_) => FriendProvider()),
         ChangeNotifierProvider(create: (_) => LabNoteProvider()),
+        ChangeNotifierProvider(create: (_) => LabClockProvider()),
         ChangeNotifierProxyProvider<UserProvider, ChatSessionProvider>(
           create: (_) => ChatSessionProvider(),
           update: (_, userProvider, sessionProvider) {
