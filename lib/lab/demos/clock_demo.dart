@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -60,11 +61,11 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
       context.read<LabClockProvider>().loadClocks();
     });
 
-    // 波浪动画
+    // 波浪动画 - 默认不循环，由时钟状态控制
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
-    )..repeat();
+    );
     _waveAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
     );
@@ -80,6 +81,22 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
     _snapAnimation.addListener(() {
       if (_snapAnimation.isCompleted) {
         setState(() {});
+      }
+    });
+
+    // 添加定时器检查时钟状态，控制波浪动画
+    Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final provider = context.read<LabClockProvider>();
+      final hasRunningClock = provider.clocks.any((c) => c.isRunning);
+
+      if (hasRunningClock && !_animController.isAnimating) {
+        _animController.repeat();
+      } else if (!hasRunningClock && _animController.isAnimating) {
+        _animController.stop();
       }
     });
   }
