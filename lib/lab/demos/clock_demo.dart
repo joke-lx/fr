@@ -54,6 +54,9 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
   final ScrollController _clockScrollController = ScrollController();
   final ScrollController _recordScrollController = ScrollController();
 
+  // 是否有时钟正在运行
+  bool _hasRunningClock = false;
+
   @override
   void initState() {
     super.initState();
@@ -91,11 +94,17 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
         return;
       }
       final provider = context.read<LabClockProvider>();
-      final hasRunningClock = provider.clocks.any((c) => c.isRunning);
+      final hasRunning = provider.clocks.any((c) => c.isRunning);
 
-      if (hasRunningClock && !_animController.isAnimating) {
+      if (hasRunning != _hasRunningClock) {
+        setState(() {
+          _hasRunningClock = hasRunning;
+        });
+      }
+
+      if (hasRunning && !_animController.isAnimating) {
         _animController.repeat();
-      } else if (!hasRunningClock && _animController.isAnimating) {
+      } else if (!hasRunning && _animController.isAnimating) {
         _animController.stop();
       }
     });
@@ -222,21 +231,17 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
                           left: 0,
                           right: 0,
                           height: 20,
-                          child: AnimatedBuilder(
-                            animation: _waveAnimation,
-                            builder: (context, child) {
+                          child: Builder(
+                            builder: (context) {
                               // 检查是否接近磁吸点，用于增强视觉效果
                               final proximity = _checkSnapProximity(_splitPosition);
 
-                              return CustomPaint(
-                                size: Size.infinite,
-                                painter: _WaveLinePainter(
-                                  waveAnimation: _waveAnimation.value,
-                                  isDragging: _isDragging,
-                                  color: const Color(0xFF007AFF),
-                                  isNearSnapPoint: proximity.$1,
-                                  snapPointIndex: proximity.$2,
-                                ),
+                              return _BreathingWaveLine(
+                                isRunning: _hasRunningClock,
+                                isDragging: _isDragging,
+                                color: const Color(0xFF007AFF),
+                                isNearSnapPoint: proximity.$1,
+                                snapPointIndex: proximity.$2,
                               );
                             },
                           ),
@@ -912,6 +917,255 @@ class _WaveLinePainter extends CustomPainter {
     return waveAnimation != oldDelegate.waveAnimation ||
         isDragging != oldDelegate.isDragging ||
         color != oldDelegate.color ||
+        isNearSnapPoint != oldDelegate.isNearSnapPoint ||
+        snapPointIndex != oldDelegate.snapPointIndex;
+  }
+}
+
+/// 呼吸波浪线条组件
+/// - 运行时：显示波浪动画，带呼吸效果
+/// - 停止时：渐变为直线
+class _BreathingWaveLine extends StatefulWidget {
+  final bool isRunning;
+  final bool isDragging;
+  final Color color;
+  final bool isNearSnapPoint;
+  final int? snapPointIndex;
+
+  const _BreathingWaveLine({
+    required this.isRunning,
+    required this.isDragging,
+    required this.color,
+    this.isNearSnapPoint = false,
+    this.snapPointIndex,
+  });
+
+  @override
+  State<_BreathingWaveLine> createState() => _BreathingWaveLineState();
+}
+
+class _BreathingWaveLineState extends State<_BreathingWaveLine>
+    with TickerProviderStateMixin {
+  late AnimationController _waveController;   // 波浪动画
+  late AnimationController _breathController; // 呼吸动画
+  late AnimationController _fadeController;   // 渐变到直线的动画
+
+  late Animation<double> _waveAnimation;
+  late Animation<double> _breathAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 波浪动画控制器
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+    _waveAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
+      CurvedAnimation(parent: _waveController, curve: Curves.linear),
+    );
+
+    // 呼吸动画控制器 - 控制波浪幅度周期变化
+    _breathController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+    _breathAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
+    );
+
+    // 渐变动画控制器 - 停止时波浪平滑过渡到直线
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
+    );
+
+    // 根据运行状态启动/停止动画
+    _updateAnimationState();
+  }
+
+  void _updateAnimationState() {
+    if (widget.isRunning) {
+      // 运行时：启动波浪和呼吸动画
+      _waveController.repeat();
+      _breathController.repeat(reverse: true);
+      // 如果之前是停止状态，平滑过渡
+      if (_fadeController.value > 0) {
+        _fadeController.reverse();
+      }
+    } else {
+      // 停止时：停止波浪动画
+      _waveController.stop();
+      _breathController.stop();
+      // 渐变到直线
+      if (_fadeController.value < 1) {
+        _fadeController.forward();
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(_BreathingWaveLine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isRunning != oldWidget.isRunning) {
+      _updateAnimationState();
+    }
+  }
+
+  @override
+  void dispose() {
+    _waveController.dispose();
+    _breathController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_waveAnimation, _breathAnimation, _fadeAnimation]),
+      builder: (context, child) {
+        return CustomPaint(
+          size: Size.infinite,
+          painter: _BreathingWavePainter(
+            wavePhase: _waveAnimation.value,
+            breathIntensity: _breathAnimation.value,
+            fadeProgress: _fadeAnimation.value,
+            isDragging: widget.isDragging,
+            color: widget.color,
+            isNearSnapPoint: widget.isNearSnapPoint,
+            snapPointIndex: widget.snapPointIndex,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 呼吸波浪线画笔
+class _BreathingWavePainter extends CustomPainter {
+  final double wavePhase;        // 波浪相位
+  final double breathIntensity;  // 呼吸强度 (0.6-1.0)
+  final double fadeProgress;     // 渐变进度 (1.0=波浪, 0.0=直线)
+  final bool isDragging;
+  final Color color;
+  final bool isNearSnapPoint;
+  final int? snapPointIndex;
+
+  _BreathingWavePainter({
+    required this.wavePhase,
+    required this.breathIntensity,
+    required this.fadeProgress,
+    required this.isDragging,
+    required this.color,
+    this.isNearSnapPoint = false,
+    this.snapPointIndex,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 计算透明度：渐变过程中透明度降低
+    final baseOpacity = isDragging ? 0.8 : 0.5;
+    final opacity = baseOpacity * fadeProgress + 0.3 * (1 - fadeProgress);
+
+    final isNear = isNearSnapPoint || isDragging;
+    final strokeWidth = isNear ? 3.0 : 2.0;
+
+    final paint = Paint()
+      ..color = color.withOpacity(opacity)
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+
+    // 基础波浪高度，受呼吸效果影响
+    final baseWaveHeight = isDragging ? 12.0 : 8.0;
+    final waveHeight = baseWaveHeight * breathIntensity;
+    final nearWaveHeight = waveHeight * 1.5;
+
+    path.moveTo(0, size.height / 2);
+
+    for (double x = 0; x <= size.width; x += 5) {
+      final normalizedX = x / size.width;
+
+      // 基础波浪
+      final waveOffset = math.sin(wavePhase + normalizedX * 4 * math.pi) * waveHeight;
+
+      // 磁吸点增强效果
+      final snapEffect = _getSnapEffect(normalizedX);
+      final snapOffset = snapEffect * math.sin(wavePhase * 2) * nearWaveHeight * 0.6;
+
+      // 脉冲效果
+      double pulseOffset = 0;
+      if (isNearSnapPoint && snapPointIndex != null) {
+        final targetX = snapPointIndex == 0 ? 1.0 / 3.0 : 2.0 / 3.0;
+        final distToTarget = (normalizedX - targetX).abs();
+        if (distToTarget < 0.15) {
+          final pulseIntensity = (1 - distToTarget / 0.15) * breathIntensity;
+          pulseOffset = math.sin(wavePhase * 3) * 5 * pulseIntensity;
+        }
+      }
+
+      // 计算最终y坐标（混合波浪和直线）
+      final waveY = size.height / 2 + waveOffset + snapOffset + pulseOffset;
+      final straightY = size.height / 2;
+      final y = straightY + (waveY - straightY) * fadeProgress;
+
+      path.lineTo(x, y);
+    }
+
+    canvas.drawPath(path, paint);
+
+    // 绘制磁吸点（渐变到直线时淡化）
+    _drawSnapPoints(canvas, size, opacity * fadeProgress);
+  }
+
+  double _getSnapEffect(double normalizedX) {
+    const snapOneThird = 1.0 / 3.0;
+    const snapTwoThird = 2.0 / 3.0;
+    const threshold = 0.15;
+
+    final distToFirst = (normalizedX - snapOneThird).abs();
+    final distToSecond = (normalizedX - snapTwoThird).abs();
+
+    if (distToFirst < threshold) {
+      return 1.0 - distToFirst / threshold;
+    } else if (distToSecond < threshold) {
+      return 1.0 - distToSecond / threshold;
+    }
+    return 0.0;
+  }
+
+  void _drawSnapPoints(Canvas canvas, Size size, double opacity) {
+    final snapPoints = [1.0 / 3.0, 2.0 / 3.0, 1.0];
+
+    for (int i = 0; i < snapPoints.length; i++) {
+      final x = snapPoints[i] * size.width;
+      final isThisPointNear = isNearSnapPoint && snapPointIndex == i;
+
+      final dotRadius = isThisPointNear ? 5.0 : 3.0;
+      final dotOpacity = opacity * (isThisPointNear ? 0.8 : 0.4);
+
+      final dotPaint = Paint()
+        ..color = color.withOpacity(dotOpacity)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(Offset(x, size.height / 2), dotRadius, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BreathingWavePainter oldDelegate) {
+    return wavePhase != oldDelegate.wavePhase ||
+        breathIntensity != oldDelegate.breathIntensity ||
+        fadeProgress != oldDelegate.fadeProgress ||
+        isDragging != oldDelegate.isDragging ||
         isNearSnapPoint != oldDelegate.isNearSnapPoint ||
         snapPointIndex != oldDelegate.snapPointIndex;
   }
