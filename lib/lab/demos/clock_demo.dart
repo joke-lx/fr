@@ -471,20 +471,11 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
     final liveDuration = provider.getRecordLiveDuration(record);
     final durationStr = _formatDuration(liveDuration);
 
-    return Dismissible(
-      key: Key(record.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: const Color(0xFFFF3B30),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_rounded, color: Colors.white, size: 24),
-      ),
-      onDismissed: (direction) {
-        context.read<LabClockProvider>().deleteRecord(record.id);
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    // 计算实际使用时间
+    final actualDuration = provider.getRecordLiveDuration(record);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -528,25 +519,72 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
               color: Color(0xFF8E8E93),
             ),
           ),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: record.completed
-                  ? const Color(0xFF34C759).withOpacity(0.1)
-                  : const Color(0xFFFF9500).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              '实际: $durationStr',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: record.completed ? const Color(0xFF34C759) : const Color(0xFFFF9500),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 实际时间显示
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: record.completed
+                      ? const Color(0xFF34C759).withOpacity(0.1)
+                      : const Color(0xFFFF9500).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '实际: $durationStr',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: record.completed ? const Color(0xFF34C759) : const Color(0xFFFF9500),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 4),
+              // 操作按钮：创建新时钟
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, size: 22),
+                color: const Color(0xFF007AFF),
+                tooltip: '根据此记录创建新时钟',
+                onPressed: () async {
+                  if (actualDuration > 0) {
+                    await context.read<LabClockProvider>().createClock(
+                      title: '${record.clockTitle} (参考)',
+                      durationSeconds: actualDuration,
+                      color: '#007AFF',
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('已创建新时钟: $durationStr'),
+                          backgroundColor: const Color(0xFF007AFF),
+                        ),
+                      );
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('记录时间无效'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              // 操作按钮：删除
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 22),
+                color: const Color(0xFFFF3B30),
+                tooltip: '删除记录',
+                onPressed: () {
+                  context.read<LabClockProvider>().deleteRecord(record.id);
+                },
+              ),
+            ],
           ),
         ),
-      ),
     );
   }
 
