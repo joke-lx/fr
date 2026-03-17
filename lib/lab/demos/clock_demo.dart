@@ -508,9 +508,11 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
         ),
         child: _RecordSwipeAction(
           onCreate: () async {
+            // 优先使用自定义名称，否则使用原始名称
+            final title = record.customTitle ?? record.clockTitle;
             if (actualDuration > 0) {
               await context.read<LabClockProvider>().createClock(
-                title: '${record.clockTitle} (参考)',
+                title: title,
                 durationSeconds: actualDuration,
                 color: '#007AFF',
               );
@@ -564,12 +566,15 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
                   size: 22,
                 ),
               ),
-              title: Text(
-                record.clockTitle,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF000000),
+              title: GestureDetector(
+                onLongPress: () => _showEditRecordTitleDialog(context, record),
+                child: Text(
+                  record.customTitle ?? record.clockTitle,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF000000),
+                  ),
                 ),
               ),
               subtitle: Text(
@@ -624,6 +629,41 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
               Navigator.pop(ctx);
             },
             child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditRecordTitleDialog(BuildContext context, LabClockRecord record) {
+    final controller = TextEditingController(text: record.customTitle ?? record.clockTitle);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('修改名称'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '记录名称',
+            hintText: '输入自定义名称',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              final newTitle = controller.text.trim();
+              if (newTitle.isNotEmpty) {
+                context.read<LabClockProvider>().updateRecordTitle(record.id, newTitle);
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
           ),
         ],
       ),

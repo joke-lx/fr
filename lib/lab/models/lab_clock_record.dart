@@ -7,6 +7,7 @@ class LabClockRecord {
   final String id;
   final String clockId;
   final String clockTitle;
+  final String? customTitle; // 自定义名称
   final DateTime startTime;
   final DateTime? endTime;
   final int durationSeconds;
@@ -17,6 +18,7 @@ class LabClockRecord {
     required this.id,
     required this.clockId,
     required this.clockTitle,
+    this.customTitle,
     required this.startTime,
     this.endTime,
     required this.durationSeconds,
@@ -31,6 +33,7 @@ class LabClockRecord {
     String? id,
     String? clockId,
     String? clockTitle,
+    String? customTitle,
     DateTime? startTime,
     DateTime? endTime,
     int? durationSeconds,
@@ -41,6 +44,7 @@ class LabClockRecord {
       id: id ?? this.id,
       clockId: clockId ?? this.clockId,
       clockTitle: clockTitle ?? this.clockTitle,
+      customTitle: customTitle ?? this.customTitle,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       durationSeconds: durationSeconds ?? this.durationSeconds,

@@ -286,6 +286,16 @@ class LabClockProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   /// 删除记录
+  /// 更新记录的自定义名称
+  Future<void> updateRecordTitle(String id, String customTitle) async {
+    final i = _records.indexWhere((r) => r.id == id);
+    if (i == -1) return;
+
+    _records[i] = _records[i].copyWith(customTitle: customTitle);
+    await _saveRecords();
+    notifyListeners();
+  }
+
   Future<void> deleteRecord(String id) async {
     _records.removeWhere((r) => r.id == id);
     await _saveRecords();

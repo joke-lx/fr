@@ -11,6 +11,7 @@ LabClockRecord _$LabClockRecordFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String,
       clockId: json['clockId'] as String,
       clockTitle: json['clockTitle'] as String,
+      customTitle: json['customTitle'] as String?,
       startTime: DateTime.parse(json['startTime'] as String),
       endTime: json['endTime'] == null
           ? null
@@ -25,6 +26,7 @@ Map<String, dynamic> _$LabClockRecordToJson(LabClockRecord instance) =>
       'id': instance.id,
       'clockId': instance.clockId,
       'clockTitle': instance.clockTitle,
+      'customTitle': instance.customTitle,
       'startTime': instance.startTime.toIso8601String(),
       'endTime': instance.endTime?.toIso8601String(),
       'durationSeconds': instance.durationSeconds,
