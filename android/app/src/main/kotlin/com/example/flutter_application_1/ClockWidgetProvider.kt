@@ -36,15 +36,19 @@ class ClockWidgetProvider : AppWidgetProvider() {
             val isRunning = widgetData.getString("clock_is_running", "0") == "1"
             val isOvertime = widgetData.getString("clock_is_overtime", "0") == "1"
 
+            // 状态文字和图标
+            val (statusText, statusIcon, statusColor) = when {
+                isOvertime -> Triple("已超时", "🌙", "#FF5722")  // 月亮
+                isRunning -> Triple("进行中", "☀️", "#4CAF50")   // 太阳
+                else -> Triple("已暂停", "☁️", "#9E9E9E")          // 云朵
+            }
+
             // 构建 RemoteViews
             val views = RemoteViews(context.packageName, R.layout.clock_widget).apply {
                 setTextViewText(R.id.widget_title, title)
                 setTextViewText(R.id.widget_time, formattedTime)
-                setTextViewText(R.id.widget_status, when {
-                    isOvertime -> "已超时"
-                    isRunning -> "进行中"
-                    else -> "已暂停"
-                })
+                setTextViewText(R.id.widget_status, statusText)
+                setTextViewText(R.id.widget_icon, statusIcon)
 
                 // 点击事件：打开 App 并传递路由参数
                 val intent = Intent(context, MainActivity::class.java).apply {

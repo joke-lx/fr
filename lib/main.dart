@@ -44,6 +44,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static const _channel = MethodChannel('com.example.flutter_application_1/widget');
+  String? _pendingRoute;
 
   @override
   void initState() {
@@ -55,11 +56,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     if (call.method == 'navigateToLab') {
-      // 从 Widget 点击跳转到 Lab 页面
+      _navigateToLab();
+    }
+  }
+
+  void _navigateToLab() {
+    // 延迟执行确保 navigatorKey 已初始化
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       navigatorKey.currentState?.push(
         MaterialPageRoute(builder: (_) => const LabPage()),
       );
-    }
+    });
   }
 
   @override
