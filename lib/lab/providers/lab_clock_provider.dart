@@ -177,11 +177,26 @@ class LabClockProvider with ChangeNotifier {
     final index = _clocks.indexWhere((c) => c.id == id);
     if (index != -1) {
       final clock = _clocks[index];
+
+      // 确定新的剩余时间
+      int newRemainingSeconds;
+      if (durationSeconds != null && !clock.isRunning) {
+        // 如果更新了时长且时钟未运行，更新剩余时间为新时长
+        newRemainingSeconds = durationSeconds;
+      } else if (durationSeconds != null && clock.isRunning) {
+        // 如果时钟正在运行，保持当前剩余时间不变
+        newRemainingSeconds = clock.remainingSeconds;
+      } else {
+        // 如果没有更新时长，保持原剩余时间
+        newRemainingSeconds = clock.remainingSeconds;
+      }
+
       _clocks[index] = clock.copyWith(
         title: title ?? clock.title,
         description: description ?? clock.description,
         targetTime: targetTime ?? clock.targetTime,
         durationSeconds: durationSeconds ?? clock.durationSeconds,
+        remainingSeconds: newRemainingSeconds,
         color: color ?? clock.color,
       );
       await _saveClocks();

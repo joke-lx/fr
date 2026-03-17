@@ -99,31 +99,36 @@ class LabClockRecord {
   }
 
   /// 获取实际使用时长（秒）- 基于事件计算
+  /// 只计算从 start 到 pause、resume 到 pause、resume 到 reset 之间的时间
+  /// 不包括暂停期间
   int get actualDuration {
     int totalSeconds = 0;
     DateTime? sessionStart;
+    bool isRunning = false;
 
     for (final event in events) {
       switch (event.type) {
         case ClockEventType.start:
         case ClockEventType.resume:
+          // 开始一个新的运行会话
           sessionStart = event.timestamp;
+          isRunning = true;
           break;
         case ClockEventType.pause:
         case ClockEventType.reset:
-          if (sessionStart != null) {
+          // 结束当前运行会话
+          if (isRunning && sessionStart != null) {
             totalSeconds += event.timestamp.difference(sessionStart!).inSeconds;
             sessionStart = null;
+            isRunning = false;
           }
           break;
       }
     }
 
-    // 如果有未结束的会话且未完成，计算到现在的时间
-    if (sessionStart != null && !completed && endTime == null) {
-      totalSeconds += DateTime.now().difference(sessionStart).inSeconds;
-    }
-
+    // 如果记录已完成（有 reset 事件），返回累计时间
+    // 如果记录未完成，也返回已累计的时间（不包括当前运行中的时间）
+    // 这样避免了计算物理时间的问题
     return totalSeconds;
   }
 
