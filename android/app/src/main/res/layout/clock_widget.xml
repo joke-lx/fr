@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -13,8 +14,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="暂无倒计时"
-        android:textSize="14sp"
-        android:textColor="#CCCCCC"
+        android:textSize="13sp"
+        android:textColor="#DDFFFFFF"
         android:maxLines="1"
         android:ellipsize="end" />
 
@@ -24,10 +25,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="00:00:00"
-        android:textSize="28sp"
+        android:textSize="26sp"
         android:textStyle="bold"
         android:textColor="#FFFFFF"
-        android:layout_marginTop="4dp" />
+        android:fontFamily="monospace"
+        android:layout_marginTop="2dp" />
 
     <!-- 状态显示 -->
     <TextView
@@ -35,8 +37,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="进行中"
-        android:textSize="12sp"
-        android:textColor="#CCCCCC"
+        android:textSize="11sp"
+        android:textColor="#BBFFFFFF"
+        android:background="@drawable/status_background"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="2dp"
         android:layout_marginTop="8dp" />
 
 </LinearLayout>

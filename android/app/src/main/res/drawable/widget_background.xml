@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#FF2196F3" />
+    <!-- 半透明渐变背景 - 默认绿色 -->
+    <gradient
+        android:type="linear"
+        android:angle="135"
+        android:startColor="#995CAF50"
+        android:centerColor="#AA43A047"
+        android:endColor="#CC2E7D32" />
     <corners android:radius="16dp" />
 </shape>

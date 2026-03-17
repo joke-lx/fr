@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/providers.dart';
 import 'screens/home/home_page.dart';
@@ -33,8 +34,51 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static const _channel = MethodChannel('com.example.flutter_application_1/widget');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // 设置 MethodChannel 监听器
+    _channel.setMethodCallHandler(_handleMethodCall);
+  }
+
+  Future<dynamic> _handleMethodCall(MethodCall call) async {
+    if (call.method == 'navigateToLab') {
+      // 从 Widget 点击跳转到 Lab 页面
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const LabPage()),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 可以在这里处理从后台恢复时的深层链接
+  }
+
+  /// 导航到 Lab 页面
+  static void navigateToLab() {
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(builder: (_) => const LabPage()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,13 +98,28 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'Flutter 聊天应用',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
           useMaterial3: true,
         ),
-        home: const MainScreen(),
+        initialRoute: '/',
+        onGenerateRoute: (settings) {
+          // 处理深层链接 fr://lab -> /lab
+          if (settings.name == '/lab') {
+            return MaterialPageRoute(
+              builder: (_) => const LabPage(),
+              settings: settings,
+            );
+          }
+          // 默认路由
+          return MaterialPageRoute(
+            builder: (_) => const MainScreen(),
+            settings: settings,
+          );
+        },
       ),
     );
   }
