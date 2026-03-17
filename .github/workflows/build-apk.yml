@@ -38,15 +38,41 @@ jobs:
       - name: Generate code
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Build Android APK
-        run: flutter build apk --release
+      - name: Build Android APK (Optimized)
+        run: |
+          # 分别构建不同架构的APK，开启混淆和符号表
+          flutter build apk --release \
+            --split-per-abi \
+            --obfuscate \
+            --split-debug-info=.debug_info
 
-      - name: Upload APK
+      - name: Upload APK (arm64)
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-chat-app-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: flutter-chat-app-arm64-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-release-arm64-v8a.apk
           retention-days: 30
+
+      - name: Upload APK (arm)
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-chat-app-arm-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-release-armeabi-v7a.apk
+          retention-days: 30
+
+      - name: Upload APK (x64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-chat-app-x64-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-release-x86_64.apk
+          retention-days: 30
+
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-chat-app-symbols-${{ github.sha }}
+          path: .debug_info
+          retention-days: 90
 
       - name: Create Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -57,6 +83,8 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-release-arm64-v8a.apk
+            build/app/outputs/flutter-apk/app-release-armeabi-v7a.apk
+            build/app/outputs/flutter-apk/app-release-x86_64.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
