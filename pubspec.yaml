@@ -89,6 +89,9 @@ dependencies:
   # Game Engine
   flame: ^1.21.0
 
+  # Home Widget (桌面小组件)
+  home_widget: ^0.7.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
