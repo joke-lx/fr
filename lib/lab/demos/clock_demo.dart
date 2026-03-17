@@ -38,13 +38,12 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
   late Animation<double> _waveAnimation;
   late Animation<double> _snapAnimation;
 
-  // 吸附点位置
-  static const double _snapOneThird = 1.0 / 3.0;
-  static const double _snapTwoThird = 2.0 / 3.0;
-  static const double _snapFull = 1.0;
-  static const double _snapClockOnly = 0.0;
+  // 吸附点位置 - 只保留中间两个磁力点，避免极端位置误触
+  static const double _snapOneThird = 1.0 / 3.0;   // 记录占33%
+  static const double _snapTwoThird = 2.0 / 3.0;   // 记录占67%
+  static const double _snapDefault = 0.65;       // 默认时钟65%，记录35%
 
-  // 吸附阈值 - 增大范围让吸附更容易触发
+  // 吸附阈值
   static const double _snapThreshold = 0.20;
 
   final ScrollController _clockScrollController = ScrollController();
@@ -90,17 +89,16 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
     super.dispose();
   }
 
-  // 执行吸附动画
+  // 执行吸附动画 - 只吸附到中间两个磁力点
   void _snapToNearest(double fromPosition) {
     final distances = {
-      _snapClockOnly: (fromPosition - _snapClockOnly).abs(),
       _snapOneThird: (fromPosition - _snapOneThird).abs(),
       _snapTwoThird: (fromPosition - _snapTwoThird).abs(),
-      _snapFull: (fromPosition - _snapFull).abs(),
+      _snapDefault: (fromPosition - _snapDefault).abs(),
     };
 
     double nearest = fromPosition;
-    double minDistance = distances[_snapClockOnly]!;
+    double minDistance = distances[_snapOneThird]!;
 
     distances.forEach((key, value) {
       if (value < minDistance) {
