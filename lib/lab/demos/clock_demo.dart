@@ -45,7 +45,7 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
   static const double _snapClockOnly = 0.0;
 
   // 吸附阈值 - 增大范围让吸附更容易触发
-  static const double _snapThreshold = 0.12;
+  static const double _snapThreshold = 0.20;
 
   final ScrollController _clockScrollController = ScrollController();
   final ScrollController _recordScrollController = ScrollController();
@@ -143,6 +143,9 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final splitY = screenHeight * (1 - _splitPosition);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -152,82 +155,113 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
             top: 0,
             left: 0,
             right: 0,
-            height: MediaQuery.of(context).size.height * (1 - _splitPosition),
+            height: splitY,
             child: _buildClockPage(context),
           ),
-          // 记录页面（下半部分）
+          // 记录页面（下半部分）- 波浪线作为其顶部
           Positioned(
+            top: splitY,
+            left: 0,
+            right: 0,
             bottom: 0,
-            left: 0,
-            right: 0,
-            height: MediaQuery.of(context).size.height * _splitPosition,
-            child: _buildRecordPage(context),
-          ),
-          // 波浪分割线
-          Positioned(
-            top: MediaQuery.of(context).size.height * (1 - _splitPosition) - 20,
-            left: 0,
-            right: 0,
-            child: GestureDetector(
-              onVerticalDragStart: (_) {
-                setState(() => _isDragging = true);
-              },
-              onVerticalDragUpdate: (details) {
-                setState(() {
-                  final screenHeight = MediaQuery.of(context).size.height;
-                  final deltaRatio = -details.delta.dy / screenHeight;
-                  _splitPosition = (_splitPosition + deltaRatio).clamp(0.15, 0.85);
-                });
-              },
-              onVerticalDragEnd: (_) {
-                setState(() => _isDragging = false);
-                _snapToNearest(_splitPosition);
-              },
-              child: Container(
-                height: 40,
-                color: Colors.transparent,
-                child: AnimatedBuilder(
-                  animation: _waveAnimation,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      size: Size.infinite,
-                      painter: _WaveLinePainter(
-                        waveAnimation: _waveAnimation.value,
-                        isDragging: _isDragging,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    );
+            child: Column(
+              children: [
+                // 波浪分割线 - 位于记录页面顶部
+                GestureDetector(
+                  onVerticalDragStart: (_) {
+                    setState(() => _isDragging = true);
                   },
-                ),
-              ),
-            ),
-          ),
-          // 分割线中间的拖动手柄
-          Positioned(
-            top: MediaQuery.of(context).size.height * (1 - _splitPosition) - 12,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: _isDragging ? 48 : 40,
-                height: _isDragging ? 6 : 5,
-                decoration: BoxDecoration(
-                  color: _isDragging
-                      ? Theme.of(context).colorScheme.primary
-                      : const Color(0xFFE5E5EA),
-                  borderRadius: BorderRadius.circular(_isDragging ? 3 : 2.5),
-                  boxShadow: _isDragging
-                      ? [
-                          BoxShadow(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                            blurRadius: 8,
-                            spreadRadius: 2,
+                  onVerticalDragUpdate: (details) {
+                    setState(() {
+                      final deltaRatio = -details.delta.dy / screenHeight;
+                      _splitPosition = (_splitPosition + deltaRatio).clamp(0.1, 0.9);
+                    });
+                  },
+                  onVerticalDragEnd: (_) {
+                    setState(() => _isDragging = false);
+                    _snapToNearest(_splitPosition);
+                  },
+                  child: Container(
+                    height: 60, // 增加拖动响应区域
+                    color: const Color(0xFFF9F9F9),
+                    child: Stack(
+                      children: [
+                        // 波浪线
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 30,
+                          child: AnimatedBuilder(
+                            animation: _waveAnimation,
+                            builder: (context, child) {
+                              return CustomPaint(
+                                size: Size.infinite,
+                                painter: _WaveLinePainter(
+                                  waveAnimation: _waveAnimation.value,
+                                  isDragging: _isDragging,
+                                  color: const Color(0xFF007AFF),
+                                ),
+                              );
+                            },
                           ),
-                        ]
-                      : null,
+                        ),
+                        // 拖动手柄
+                        Positioned(
+                          top: 8,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: _isDragging ? 50 : 42,
+                              height: _isDragging ? 6 : 5,
+                              decoration: BoxDecoration(
+                                color: _isDragging
+                                    ? const Color(0xFF007AFF)
+                                    : const Color(0xFFE5E5EA),
+                                borderRadius: BorderRadius.circular(_isDragging ? 3 : 2.5),
+                                boxShadow: _isDragging
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(0xFF007AFF).withOpacity(0.3),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // 拖动提示
+                        Positioned(
+                          bottom: 5,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 200),
+                              opacity: _isDragging ? 1.0 : 0.4,
+                              child: Text(
+                                _isDragging ? '释放以吸附' : '拖动调整占比',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF8E8E93),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                // 记录内容区域
+                Expanded(
+                  child: _buildRecordPageContent(context),
+                ),
+              ],
             ),
           ),
           // 顶部提示 - 只在接近时钟全屏时显示
@@ -295,15 +329,14 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
     );
   }
 
-  Widget _buildRecordPage(BuildContext context) {
+  Widget _buildRecordPageContent(BuildContext context) {
     return Consumer<LabClockProvider>(
       builder: (context, provider, child) {
         final records = provider.records;
         return Container(
-          color: const Color(0xFFF9F9F9),
+          color: Colors.white,
           child: Column(
             children: [
-              const SizedBox(height: 50),
               // 记录标题栏
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
