@@ -854,9 +854,6 @@ class _WaveLinePainter extends CustomPainter {
     }
 
     canvas.drawPath(path, paint);
-
-    // 绘制增强的磁吸点指示器
-    _drawSnapPoints(canvas, size);
   }
 
   double _getSnapEffect(double normalizedX) {
@@ -874,42 +871,6 @@ class _WaveLinePainter extends CustomPainter {
       return (1.0 - distToSecond / 0.15);
     }
     return 0.0;
-  }
-
-  void _drawSnapPoints(Canvas canvas, Size size) {
-    final snapPoints = [1.0 / 3.0, 2.0 / 3.0, 1.0];
-
-    for (int i = 0; i < snapPoints.length; i++) {
-      final x = snapPoints[i] * size.width;
-
-      // 接近磁吸点时，该点变大且更亮
-      final isThisPointNear = isNearSnapPoint && snapPointIndex == i;
-      final dotRadius = isThisPointNear ? 6.0 : (isDragging ? 4.0 : 3.0);
-      final dotOpacity = isThisPointNear ? 0.8 : (isDragging ? 0.5 : 0.3);
-
-      final dotPaint = Paint()
-        ..color = color.withOpacity(dotOpacity)
-        ..style = PaintingStyle.fill;
-
-      // 绘制主圆点
-      canvas.drawCircle(
-        Offset(x, size.height / 2),
-        dotRadius,
-        dotPaint,
-      );
-
-      // 如果接近这个点，绘制外圈光环效果
-      if (isThisPointNear) {
-        final glowPaint = Paint()
-          ..color = color.withOpacity(0.2)
-          ..style = PaintingStyle.fill;
-        canvas.drawCircle(
-          Offset(x, size.height / 2),
-          dotRadius + 4 + math.sin(waveAnimation * 4) * 2,  // 脉冲光环
-          glowPaint,
-        );
-      }
-    }
   }
 
   @override
@@ -1121,9 +1082,6 @@ class _BreathingWavePainter extends CustomPainter {
     }
 
     canvas.drawPath(path, paint);
-
-    // 绘制磁吸点（渐变到直线时淡化）
-    _drawSnapPoints(canvas, size, opacity * fadeProgress);
   }
 
   double _getSnapEffect(double normalizedX) {
@@ -1140,24 +1098,6 @@ class _BreathingWavePainter extends CustomPainter {
       return 1.0 - distToSecond / threshold;
     }
     return 0.0;
-  }
-
-  void _drawSnapPoints(Canvas canvas, Size size, double opacity) {
-    final snapPoints = [1.0 / 3.0, 2.0 / 3.0, 1.0];
-
-    for (int i = 0; i < snapPoints.length; i++) {
-      final x = snapPoints[i] * size.width;
-      final isThisPointNear = isNearSnapPoint && snapPointIndex == i;
-
-      final dotRadius = isThisPointNear ? 5.0 : 3.0;
-      final dotOpacity = opacity * (isThisPointNear ? 0.8 : 0.4);
-
-      final dotPaint = Paint()
-        ..color = color.withOpacity(dotOpacity)
-        ..style = PaintingStyle.fill;
-
-      canvas.drawCircle(Offset(x, size.height / 2), dotRadius, dotPaint);
-    }
   }
 
   @override
