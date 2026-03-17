@@ -126,7 +126,7 @@ class LabClockProvider with ChangeNotifier {
 
     final now = DateTime.now();
 
-    // 查找或创建记录
+    // 查找或创建记录（只创建，不累加）
     int recordIdx = _records.indexWhere((r) => r.clockId == id && r.endTime == null);
 
     if (recordIdx == -1) {
@@ -138,7 +138,6 @@ class LabClockProvider with ChangeNotifier {
         durationSeconds: c.durationSeconds ?? 0,
       );
       _records.insert(0, record);
-      recordIdx = 0;
     }
 
     _clocks[i] = c.copyWith(isRunning: true, startTime: now);
@@ -234,7 +233,7 @@ class LabClockProvider with ChangeNotifier {
 
   /// 获取记录实时运行时间
   int getRecordLiveDuration(LabClockRecord record) {
-    // 已完成：直接返回
+    // 已完成：直接返回保存的值
     if (record.completed) {
       return record.accumulatedSeconds ?? 0;
     }
@@ -243,6 +242,7 @@ class LabClockProvider with ChangeNotifier {
     if (clock != null && clock.isRunning) {
       return (record.durationSeconds) - clock.remainingSeconds;
     }
+    // 暂停中：显示0
     return 0;
   }
 
