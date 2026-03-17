@@ -183,9 +183,9 @@ class LabClockProvider with ChangeNotifier {
         _records.insert(0, record);
       }
 
+      // 恢复时保持当前剩余时间不变
       _clocks[index] = clock.copyWith(
         isRunning: true,
-        remainingSeconds: clock.durationSeconds ?? 0,
         startTime: now,
       );
 
