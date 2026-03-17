@@ -19,6 +19,7 @@ LabClock _$LabClockFromJson(Map<String, dynamic> json) => LabClock(
   startTime: json['startTime'] == null
       ? null
       : DateTime.parse(json['startTime'] as String),
+  startRemainingSeconds: (json['startRemainingSeconds'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$LabClockToJson(LabClock instance) => <String, dynamic>{
@@ -32,4 +33,5 @@ Map<String, dynamic> _$LabClockToJson(LabClock instance) => <String, dynamic>{
   'remainingSeconds': instance.remainingSeconds,
   'color': instance.color,
   'startTime': instance.startTime?.toIso8601String(),
+  'startRemainingSeconds': instance.startRemainingSeconds,
 };

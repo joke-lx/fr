@@ -14,6 +14,7 @@ class LabClock {
   final int remainingSeconds; // 剩余秒数
   final String? color;
   final DateTime? startTime; // 开始倒计时的时间
+  final int? startRemainingSeconds; // 启动时刻的剩余秒数（用于后台恢复计算）
 
   LabClock({
     required this.id,
@@ -26,6 +27,7 @@ class LabClock {
     this.remainingSeconds = 0,
     this.color,
     this.startTime,
+    this.startRemainingSeconds,
   });
 
   factory LabClock.fromJson(Map<String, dynamic> json) => _$LabClockFromJson(json);
@@ -43,6 +45,7 @@ class LabClock {
     int? remainingSeconds,
     String? color,
     DateTime? startTime,
+    int? startRemainingSeconds,
   }) {
     return LabClock(
       id: id ?? this.id,
@@ -55,6 +58,7 @@ class LabClock {
       remainingSeconds: remainingSeconds ?? this.remainingSeconds,
       color: color ?? this.color,
       startTime: startTime ?? this.startTime,
+      startRemainingSeconds: startRemainingSeconds ?? this.startRemainingSeconds,
     );
   }
 }

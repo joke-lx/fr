@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/lab_clock.dart';
 import '../models/lab_clock_record.dart';
 
 /// 极简时钟Provider
-class LabClockProvider with ChangeNotifier {
+class LabClockProvider with ChangeNotifier, WidgetsBindingObserver {
   List<LabClock> _clocks = [];
   List<LabClockRecord> _records = [];
   static const String _storageKey = 'lab_clocks';
@@ -19,17 +19,59 @@ class LabClockProvider with ChangeNotifier {
 
   LabClockProvider() {
     _startTimer();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 应用恢复时重新计算所有运行中的时钟
+      _recalculateRunningClocks();
+    }
+  }
+
+  /// 重新计算运行中时钟的剩余时间（基于startTime）
+  void _recalculateRunningClocks() {
+    bool changed = false;
+    for (int i = 0; i < _clocks.length; i++) {
+      final clock = _clocks[i];
+      if (clock.isRunning && clock.startTime != null) {
+        // 使用startRemainingSeconds（如果有），否则兼容旧数据用durationSeconds
+        final baseSeconds = clock.startRemainingSeconds ?? clock.durationSeconds ?? clock.remainingSeconds;
+        final elapsed = DateTime.now().difference(clock.startTime!).inSeconds;
+        final newRemaining = baseSeconds - elapsed;
+
+        if (newRemaining != clock.remainingSeconds) {
+          _clocks[i] = clock.copyWith(
+            remainingSeconds: newRemaining > 0 ? newRemaining : 0,
+          );
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      _saveClocks();
+      notifyListeners();
+    }
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       bool changed = false;
       for (int i = 0; i < _clocks.length; i++) {
-        if (_clocks[i].isRunning) {
-          _clocks[i] = _clocks[i].copyWith(
-            remainingSeconds: _clocks[i].remainingSeconds - 1
-          );
-          changed = true;
+        final clock = _clocks[i];
+        if (clock.isRunning && clock.startTime != null) {
+          // 使用startRemainingSeconds（如果有），否则兼容旧数据用durationSeconds
+          final baseSeconds = clock.startRemainingSeconds ?? clock.durationSeconds ?? clock.remainingSeconds;
+          final elapsed = DateTime.now().difference(clock.startTime!).inSeconds;
+          final newRemaining = baseSeconds - elapsed;
+
+          if (newRemaining != clock.remainingSeconds) {
+            _clocks[i] = clock.copyWith(
+              remainingSeconds: newRemaining > 0 ? newRemaining : 0,
+            );
+            changed = true;
+          }
         }
       }
       if (changed) {
@@ -140,7 +182,12 @@ class LabClockProvider with ChangeNotifier {
       _records.insert(0, record);
     }
 
-    _clocks[i] = c.copyWith(isRunning: true, startTime: now);
+    // 保存启动时刻的剩余时间和开始时间，用于后续计算
+    _clocks[i] = c.copyWith(
+      isRunning: true,
+      startTime: now,
+      startRemainingSeconds: c.remainingSeconds,
+    );
 
     await _saveRecords();
     await _saveClocks();
@@ -249,6 +296,7 @@ class LabClockProvider with ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 }
