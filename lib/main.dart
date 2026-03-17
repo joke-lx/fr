@@ -15,7 +15,6 @@ import 'lab/demos/game_2048_demo.dart';
 import 'lab/demos/canvas_demo.dart';
 import 'lab/demos/drag_reorder_demo.dart';
 import 'lab/demos/web_preview_demo.dart';
-import 'lab/demos/flame_game_demo.dart';
 import 'lab/providers/lab_note_provider.dart';
 import 'lab/providers/lab_clock_provider.dart';
 
@@ -29,8 +28,6 @@ void main() {
   registerCanvasDemo();
   registerDragReorderDemo();
   registerWebPreviewDemo();
-  registerFlameGameDemo();
-
   runApp(const MyApp());
 }
 
