@@ -6,21 +6,6 @@ part of 'lab_clock_record.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-ClockSession _$ClockSessionFromJson(Map<String, dynamic> json) => ClockSession(
-  id: json['id'] as String,
-  startTime: DateTime.parse(json['startTime'] as String),
-  endTime: json['endTime'] == null
-      ? null
-      : DateTime.parse(json['endTime'] as String),
-);
-
-Map<String, dynamic> _$ClockSessionToJson(ClockSession instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'startTime': instance.startTime.toIso8601String(),
-      'endTime': instance.endTime?.toIso8601String(),
-    };
-
 LabClockRecord _$LabClockRecordFromJson(Map<String, dynamic> json) =>
     LabClockRecord(
       id: json['id'] as String,
@@ -32,9 +17,8 @@ LabClockRecord _$LabClockRecordFromJson(Map<String, dynamic> json) =>
           : DateTime.parse(json['endTime'] as String),
       durationSeconds: (json['durationSeconds'] as num).toInt(),
       completed: json['completed'] as bool? ?? false,
-      sessions: (json['sessions'] as List<dynamic>?)
-          ?.map((e) => ClockSession.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      accumulatedRunningSeconds: (json['accumulatedRunningSeconds'] as num?)
+          ?.toInt(),
     );
 
 Map<String, dynamic> _$LabClockRecordToJson(LabClockRecord instance) =>
@@ -46,5 +30,5 @@ Map<String, dynamic> _$LabClockRecordToJson(LabClockRecord instance) =>
       'endTime': instance.endTime?.toIso8601String(),
       'durationSeconds': instance.durationSeconds,
       'completed': instance.completed,
-      'sessions': instance.sessions,
+      'accumulatedRunningSeconds': instance.accumulatedRunningSeconds,
     };
