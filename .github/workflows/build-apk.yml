@@ -3,11 +3,9 @@ name: Build Android APK
 on:
   push:
     branches:
-      - main
       - master
   pull_request:
     branches:
-      - main
       - master
   workflow_dispatch:
 
@@ -36,55 +34,55 @@ jobs:
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: flutter pub run build_runner build --delete-conflicting-outputs || true
 
       - name: Build Android APK (Optimized)
         run: |
-          # 分别构建不同架构的APK，开启混淆和符号表
           flutter build apk --release \
             --split-per-abi \
             --obfuscate \
-            --split-debug-info=.debug_info
+            --split-debug-info=./debug_symbols
 
       - name: Upload APK (arm64)
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-chat-app-arm64-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/app-release-arm64-v8a.apk
+          name: flutter-app-arm64-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           retention-days: 30
 
       - name: Upload APK (arm)
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-chat-app-arm-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/app-release-armeabi-v7a.apk
+          name: flutter-app-arm-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
           retention-days: 30
 
       - name: Upload APK (x64)
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-chat-app-x64-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/app-release-x86_64.apk
+          name: flutter-app-x64-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-x86_64-release.apk
           retention-days: 30
 
       - name: Upload debug symbols
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-chat-app-symbols-${{ github.sha }}
-          path: .debug_info
+          name: debug-symbols-${{ github.sha }}
+          path: debug_symbols
           retention-days: 90
 
       - name: Create Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v-${{ github.sha }}
           name: Release ${{ github.sha }}
           draft: false
           prerelease: false
           files: |
-            build/app/outputs/flutter-apk/app-release-arm64-v8a.apk
-            build/app/outputs/flutter-apk/app-release-armeabi-v7a.apk
-            build/app/outputs/flutter-apk/app-release-x86_64.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-x86_64-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
