@@ -40,16 +40,26 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
   late Animation<double> _waveAnimation;
   late Animation<double> _snapAnimation;
 
-  // 吸附点位置 - 只保留中间两个磁力点，避免极端位置误触
-  static const double _snapOneThird = 1.0 / 3.0;   // 记录占33%
-  static const double _snapTwoThird = 2.0 / 3.0;   // 记录占67%
-  static const double _snapDefault = 0.65;       // 默认时钟65%，记录35%
+  // 吸附点位置 - 添加相邻吸附点方便形成操作习惯
+  static const double _snapOneThird = 1.0 / 3.0;     // 记录占33%
+  static const double _snapTwoThird = 2.0 / 3.0;     // 记录占67%
+  static const double _snapOneThirdNear = 0.28;       // 1/3相邻点（稍微偏上）
+  static const double _snapTwoThirdNear = 0.72;      // 2/3相邻点（稍微偏下）
+  static const double _snapDefault = 0.65;           // 默认时钟65%，记录35%
+
+  // 所有吸附点列表（按位置排序）
+  static const List<double> _allSnapPoints = [
+    _snapOneThirdNear,  // 0.28
+    _snapOneThird,     // 0.33
+    _snapTwoThird,     // 0.67
+    _snapTwoThirdNear, // 0.72
+  ];
 
   // 吸附阈值 - 增强磁吸范围
-  static const double _snapThreshold = 0.30;  // 从0.20提高到0.30，更容易吸附
+  static const double _snapThreshold = 0.15;  // 稍微减小，让吸附更精准
 
   // 检测接近磁吸点的阈值（用于视觉反馈）
-  static const double _snapProximityThreshold = 0.12;
+  static const double _snapProximityThreshold = 0.08;
 
   final ScrollController _clockScrollController = ScrollController();
   final ScrollController _recordScrollController = ScrollController();
@@ -121,32 +131,30 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
 
   // 检查是否接近磁吸点
   (bool isNear, int? snapPointIndex) _checkSnapProximity(double position) {
-    for (int i = 0; i < 2; i++) {
-      final snapPoint = i == 0 ? _snapOneThird : _snapTwoThird;
-      if ((position - snapPoint).abs() <= _snapProximityThreshold) {
+    for (int i = 0; i < _allSnapPoints.length; i++) {
+      if ((position - _allSnapPoints[i]).abs() <= _snapProximityThreshold) {
         return (true, i);
       }
     }
     return (false, null);
   }
 
-  // 执行吸附动画 - 增强磁吸效果
+  // 执行吸附动画 - 使用所有吸附点
   void _snapToNearest(double fromPosition) {
-    final distances = {
-      _snapOneThird: (fromPosition - _snapOneThird).abs(),
-      _snapTwoThird: (fromPosition - _snapTwoThird).abs(),
-      _snapDefault: (fromPosition - _snapDefault).abs(),
-    };
+    // 合并所有吸附点
+    final allPoints = [..._allSnapPoints, _snapDefault];
 
+    // 找到最近的吸附点
     double nearest = fromPosition;
-    double minDistance = distances[_snapOneThird]!;
+    double minDistance = double.infinity;
 
-    distances.forEach((key, value) {
-      if (value < minDistance) {
-        minDistance = value;
-        nearest = key;
+    for (final point in allPoints) {
+      final distance = (fromPosition - point).abs();
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = point;
       }
-    });
+    }
 
     // 只有在阈值范围内才吸附
     if (minDistance <= _snapThreshold) {
