@@ -33,33 +33,23 @@ class _ClockDemoPage extends StatefulWidget {
 
 class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderStateMixin {
   // 波浪分割线位置：0.0 = 时钟全屏，1.0 = 记录全屏
-  double _splitPosition = 0.65; // 默认时钟占65%，记录占35%
+  double _splitPosition = 0.50; // 默认50-50分割
   bool _isDragging = false;
   late AnimationController _animController;
   late AnimationController _snapController;
   late Animation<double> _waveAnimation;
   late Animation<double> _snapAnimation;
 
-  // 吸附点位置 - 添加相邻吸附点方便形成操作习惯
-  static const double _snapOneThird = 1.0 / 3.0;     // 记录占33%
-  static const double _snapTwoThird = 2.0 / 3.0;     // 记录占67%
-  static const double _snapOneThirdNear = 0.28;       // 1/3相邻点（稍微偏上）
-  static const double _snapTwoThirdNear = 0.72;      // 2/3相邻点（稍微偏下）
-  static const double _snapDefault = 0.65;           // 默认时钟65%，记录35%
+  // 吸附点位置 - 4个点：主吸附点+相邻点
+  static const double _snapTop = 0.30;      // 上方相邻点（靠近1/3）
+  static const double _snapBottom = 0.70;    // 下方相邻点（靠近2/3）
+  static const double _snapDefault = 0.50;   // 默认中间位置
 
-  // 所有吸附点列表（按位置排序）
-  static const List<double> _allSnapPoints = [
-    _snapOneThirdNear,  // 0.28
-    _snapOneThird,     // 0.33
-    _snapTwoThird,     // 0.67
-    _snapTwoThirdNear, // 0.72
-  ];
-
-  // 吸附阈值 - 增强磁吸范围
-  static const double _snapThreshold = 0.15;  // 稍微减小，让吸附更精准
+  // 吸附阈值 - 增大范围确保更容易吸附
+  static const double _snapThreshold = 0.20;
 
   // 检测接近磁吸点的阈值（用于视觉反馈）
-  static const double _snapProximityThreshold = 0.08;
+  static const double _snapProximityThreshold = 0.15;
 
   final ScrollController _clockScrollController = ScrollController();
   final ScrollController _recordScrollController = ScrollController();
@@ -131,24 +121,24 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
 
   // 检查是否接近磁吸点
   (bool isNear, int? snapPointIndex) _checkSnapProximity(double position) {
-    for (int i = 0; i < _allSnapPoints.length; i++) {
-      if ((position - _allSnapPoints[i]).abs() <= _snapProximityThreshold) {
+    final points = [_snapTop, _snapBottom, _snapDefault];
+    for (int i = 0; i < points.length; i++) {
+      if ((position - points[i]).abs() <= _snapProximityThreshold) {
         return (true, i);
       }
     }
     return (false, null);
   }
 
-  // 执行吸附动画 - 使用所有吸附点
+  // 执行吸附动画 - 找到最近的吸附点
   void _snapToNearest(double fromPosition) {
-    // 合并所有吸附点
-    final allPoints = [..._allSnapPoints, _snapDefault];
+    final points = [_snapTop, _snapBottom, _snapDefault];
 
     // 找到最近的吸附点
     double nearest = fromPosition;
     double minDistance = double.infinity;
 
-    for (final point in allPoints) {
+    for (final point in points) {
       final distance = (fromPosition - point).abs();
       if (distance < minDistance) {
         minDistance = distance;
@@ -220,8 +210,9 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
                   },
                   onVerticalDragUpdate: (details) {
                     setState(() {
-                      final deltaRatio = -details.delta.dy / screenHeight;
-                      _splitPosition = (_splitPosition + deltaRatio).clamp(0.1, 0.9);
+                      // 向上拖动增加splitPosition（让clock区域变大），向下拖动减小
+                      final deltaRatio = details.delta.dy / screenHeight;
+                      _splitPosition = (_splitPosition - deltaRatio).clamp(0.1, 0.9);
                     });
                   },
                   onVerticalDragEnd: (_) {
