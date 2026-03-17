@@ -69,27 +69,6 @@ class _DragReorderPageState extends State<_DragReorderPage> {
     }
   }
 
-  void _deleteItem(_AppItem item) {
-    setState(() {
-      _items.removeWhere((i) => i.id == item.id);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('已删除: ${item.title}'),
-        backgroundColor: Colors.red,
-        action: SnackBarAction(
-          label: '撤销',
-          textColor: Colors.white,
-          onPressed: () {
-            setState(() {
-              _items.add(item);
-            });
-          },
-        ),
-      ),
-    );
-  }
-
   void _onReorder(int oldIndex, int newIndex) {
     setState(() {
       if (newIndex > oldIndex) {
@@ -313,7 +292,7 @@ class _DragReorderPageState extends State<_DragReorderPage> {
                 Icon(Icons.touch_app, size: 18, color: Colors.grey[400]),
                 const SizedBox(width: 8),
                 Text(
-                  '长按拖动排序 • 点击编辑 • 向左滑动删除',
+                  '长按拖动排序 • 点击编辑',
                   style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                 ),
               ],
@@ -349,7 +328,6 @@ class _DragReorderPageState extends State<_DragReorderPage> {
             isDragging: _draggingIndex == index,
             isTarget: _targetIndex == index,
             onEdit: () => _editItem(item),
-            onDelete: () => _deleteItem(item),
             onDragStarted: () => _handleDragStarted(index),
             onDragEnd: _handleDragEnd,
             onDragOver: () => _handleDragOver(index),
@@ -392,7 +370,6 @@ class _DraggableAppItem extends StatefulWidget {
   final bool isDragging;
   final bool isTarget;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
   final VoidCallback onDragStarted;
   final VoidCallback onDragEnd;
   final VoidCallback onDragOver;
@@ -405,7 +382,6 @@ class _DraggableAppItem extends StatefulWidget {
     required this.isDragging,
     required this.isTarget,
     required this.onEdit,
-    required this.onDelete,
     required this.onDragStarted,
     required this.onDragEnd,
     required this.onDragOver,
@@ -416,12 +392,7 @@ class _DraggableAppItem extends StatefulWidget {
   State<_DraggableAppItem> createState() => _DraggableAppItemState();
 }
 
-class _DraggableAppItemState extends State<_DraggableAppItem> with SingleTickerProviderStateMixin {
-  double _offsetX = 0;
-  bool _isExpanded = false;
-  static const double _actionWidth = 60;
-  _AppItem? _draggingItem;
-
+class _DraggableAppItemState extends State<_DraggableAppItem> {
   @override
   Widget build(BuildContext context) {
     return LongPressDraggable<int>(
@@ -429,21 +400,12 @@ class _DraggableAppItemState extends State<_DraggableAppItem> with SingleTickerP
       delay: const Duration(milliseconds: 200),
       onDragStarted: () {
         widget.onDragStarted();
-        setState(() {
-          _draggingItem = widget.item;
-        });
       },
       onDragEnd: (_) {
         widget.onDragEnd();
-        setState(() {
-          _draggingItem = null;
-        });
       },
       onDraggableCanceled: (_, __) {
         widget.onDragEnd();
-        setState(() {
-          _draggingItem = null;
-        });
       },
       feedback: Material(
         color: Colors.transparent,
@@ -466,92 +428,19 @@ class _DraggableAppItemState extends State<_DraggableAppItem> with SingleTickerP
           widget.onDragAccept(details.data);
         },
         builder: (context, candidateData, rejectedData) {
-          return _buildItemContent();
-        },
-      ),
-    );
-  }
-
-  Widget _buildItemContent() {
-    return GestureDetector(
-      onHorizontalDragUpdate: (details) {
-        setState(() {
-          _offsetX += details.delta.dx;
-          _offsetX = _offsetX.clamp(-_actionWidth, 0);
-        });
-      },
-      onHorizontalDragEnd: (details) {
-        if (_offsetX < -_actionWidth * 0.5) {
-          setState(() {
-            _offsetX = -_actionWidth;
-            _isExpanded = true;
-          });
-        } else {
-          setState(() {
-            _offsetX = 0;
-            _isExpanded = false;
-          });
-        }
-      },
-      onTap: () {
-        if (_isExpanded) {
-          setState(() {
-            _offsetX = 0;
-            _isExpanded = false;
-          });
-        } else {
-          widget.onEdit();
-        }
-      },
-      child: SizedBox(
-        child: Stack(
-          children: [
-            // 删除按钮
-            if (_isExpanded)
-              Positioned(
-                right: 0,
-                top: 0,
-                bottom: 0,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _offsetX = 0;
-                      _isExpanded = false;
-                    });
-                    widget.onDelete();
-                  },
-                  child: Container(
-                    width: _actionWidth,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.delete, color: Colors.white, size: 24),
-                        SizedBox(height: 2),
-                        Text('删除', style: TextStyle(color: Colors.white, fontSize: 11)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            // 应用图标
-            Transform.translate(
-              offset: Offset(_offsetX, 0),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                child: widget.isTarget
-                    ? Transform.scale(
-                        scale: 0.95,
-                        child: _buildAppIcon(isHighlight: true),
-                      )
-                    : _buildAppIcon(),
-              ),
+          return GestureDetector(
+            onTap: widget.onEdit,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              child: widget.isTarget
+                  ? Transform.scale(
+                      scale: 0.95,
+                      child: _buildAppIcon(isHighlight: true),
+                    )
+                  : _buildAppIcon(),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
