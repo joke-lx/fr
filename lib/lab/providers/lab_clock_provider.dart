@@ -43,7 +43,7 @@ class LabClockProvider with ChangeNotifier, WidgetsBindingObserver {
 
         if (newRemaining != clock.remainingSeconds) {
           _clocks[i] = clock.copyWith(
-            remainingSeconds: newRemaining > 0 ? newRemaining : 0,
+            remainingSeconds: newRemaining,
           );
           changed = true;
         }
@@ -68,7 +68,7 @@ class LabClockProvider with ChangeNotifier, WidgetsBindingObserver {
 
           if (newRemaining != clock.remainingSeconds) {
             _clocks[i] = clock.copyWith(
-              remainingSeconds: newRemaining > 0 ? newRemaining : 0,
+              remainingSeconds: newRemaining,
             );
             changed = true;
           }
