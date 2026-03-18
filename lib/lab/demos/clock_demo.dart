@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import '../lab_container.dart';
 import '../models/lab_clock.dart';
 import '../models/lab_clock_record.dart';
@@ -39,6 +40,16 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
   late AnimationController _snapController;
   late Animation<double> _waveAnimation;
   late Animation<double> _snapAnimation;
+
+  // 摇一摇检测相关变量
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  double _lastAcceleration = 0;
+  DateTime _lastShakeTime = DateTime.now();
+  static const double _shakeThreshold = 15.0; // 摇晃阈值
+  static const Duration _shakeCooldown = Duration(seconds: 2); // 摇晃冷却时间
+
+  // 摇一摇开关状态
+  bool _shakeToStartEnabled = false;
 
   // 吸附点位置 - 4个点：主吸附点+相邻点
   static const double _snapTop = 0.30;      // 上方相邻点（靠近1/3）
@@ -128,7 +139,97 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
     _snapController.dispose();
     _clockScrollController.dispose();
     _recordScrollController.dispose();
+    _accelerometerSubscription?.cancel();
     super.dispose();
+  }
+
+  // 切换摇一摇启动功能（带权限申请）
+  Future<void> _toggleShakeToStart() async {
+    if (_shakeToStartEnabled) {
+      // 关闭摇一摇
+      setState(() {
+        _shakeToStartEnabled = false;
+      });
+      _accelerometerSubscription?.cancel();
+      _accelerometerSubscription = null;
+    } else {
+      // 开启摇一摇 - 申请权限（通过震动反馈确认）
+      // 震动需要 VIBRATE 权限（已在 AndroidManifest 中配置）
+      await HapticFeedback.mediumImpact();
+      setState(() {
+        _shakeToStartEnabled = true;
+      });
+      _startAccelerometerListening();
+    }
+  }
+
+  // 开始监听加速度传感器
+  void _startAccelerometerListening() {
+    _accelerometerSubscription?.cancel();
+    _accelerometerSubscription = accelerometerEventStream().listen((AccelerometerEvent event) {
+      _detectShake(event);
+    });
+  }
+
+  // 检测摇晃动作
+  void _detectShake(AccelerometerEvent event) {
+    // 计算加速度向量的大小（去除重力影响）
+    final double acceleration = math.sqrt(
+      event.x * event.x + event.y * event.y + event.z * event.z
+    );
+
+    // 减去重力加速度 (~9.8)
+    final double netAcceleration = (acceleration - 9.8).abs();
+
+    // 检测摇晃
+    if (netAcceleration > _shakeThreshold) {
+      final now = DateTime.now();
+      // 检查冷却时间
+      if (now.difference(_lastShakeTime) > _shakeCooldown) {
+        _lastShakeTime = now;
+        _onShakeDetected();
+      }
+    }
+
+    _lastAcceleration = acceleration;
+  }
+
+  // 摇晃检测到后的回调
+  void _onShakeDetected() {
+    if (!mounted) return;
+
+    // 震动反馈
+    HapticFeedback.mediumImpact();
+
+    // 查找第一个未运行的时钟并启动
+    final provider = context.read<LabClockProvider>();
+    final clocks = provider.clocks;
+
+    // 找到第一个未运行的时钟
+    final firstStoppedClock = clocks.where((c) => !c.isRunning).firstOrNull;
+
+    if (firstStoppedClock != null) {
+      provider.startCountdown(firstStoppedClock.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('摇一摇启动: ${firstStoppedClock.title}'),
+            backgroundColor: const Color(0xFF007AFF),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('没有可启动的时钟'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }
   }
 
   // 检查是否接近磁吸点
@@ -197,6 +298,27 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: const Text(
+          '摇一摇启动',
+          style: TextStyle(
+            color: Color(0xFF000000),
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          Switch(
+            value: _shakeToStartEnabled,
+            onChanged: (_) => _toggleShakeToStart(),
+            activeColor: const Color(0xFF007AFF),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
