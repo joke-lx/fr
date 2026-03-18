@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../lab_container.dart';
 
-/// 游戏中心 Demo - 液态玻璃风格游戏集合入口
+/// 游戏中心 Demo - 液态玻璃风格可拖拽游戏集合
 class GameHubDemo extends DemoPage {
   @override
   String get title => '游戏中心';
@@ -33,11 +33,84 @@ class GameItem {
     this.route,
     this.isLocked = false,
   });
+
+  GameItem copyWith({
+    String? id,
+    String? title,
+    IconData? icon,
+    Color? color,
+    String? route,
+    bool? isLocked,
+  }) {
+    return GameItem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+      route: route ?? this.route,
+      isLocked: isLocked ?? this.isLocked,
+    );
+  }
+}
+
+/// 文件夹模型
+class GameFolder {
+  final String id;
+  final List<GameItem> games;
+  final Color color;
+
+  const GameFolder({
+    required this.id,
+    required this.games,
+    required this.color,
+  });
+
+  GameFolder copyWith({
+    String? id,
+    List<GameItem>? games,
+    Color? color,
+  }) {
+    return GameFolder(
+      id: id ?? this.id,
+      games: games ?? this.games,
+      color: color ?? this.color,
+    );
+  }
+}
+
+/// 桌面元素 - 可以是游戏或文件夹
+class DesktopItem {
+  final String id;
+  final GameItem? game;
+  final GameFolder? folder;
+  final Offset position;
+
+  const DesktopItem({
+    required this.id,
+    this.game,
+    this.folder,
+    required this.position,
+  });
+
+  DesktopItem copyWith({
+    String? id,
+    GameItem? game,
+    GameFolder? folder,
+    Offset? position,
+  }) {
+    return DesktopItem(
+      id: id ?? this.id,
+      game: game ?? this.game,
+      folder: folder ?? this.folder,
+      position: position ?? this.position,
+    );
+  }
+
+  bool get isFolder => folder != null;
 }
 
 /// 初始游戏列表
-const List<GameItem> initialGames = [
-  // 第一页 - 可玩游戏
+const List<GameItem> allGames = [
   GameItem(
     id: 'piano_tile',
     title: '钢琴块',
@@ -52,77 +125,89 @@ const List<GameItem> initialGames = [
     color: Color(0xFFEDC22E),
   ),
   GameItem(
+    id: 'game_snake',
+    title: '贪吃蛇',
+    icon: Icons.nature,
+    color: Color(0xFF34C759),
+  ),
+  GameItem(
+    id: 'game_tetris',
+    title: '俄罗斯方块',
+    icon: Icons.view_column,
+    color: Color(0xFF5856D6),
+  ),
+  GameItem(
+    id: 'game_minesweeper',
+    title: '扫雷',
+    icon: Icons.grid_3x3,
+    color: Color(0xFFFF9500),
+  ),
+  GameItem(
     id: 'coming_soon_1',
     title: '即将推出',
-    icon: Icons.more_horiz,
+    icon: Icons.extension,
     color: Color(0xFF8E8E93),
     isLocked: true,
   ),
   GameItem(
     id: 'coming_soon_2',
     title: '即将推出',
-    icon: Icons.more_horiz,
+    icon: Icons.extension,
     color: Color(0xFF8E8E93),
     isLocked: true,
   ),
   GameItem(
     id: 'coming_soon_3',
     title: '即将推出',
-    icon: Icons.more_horiz,
-    color: Color(0xFF8E8E93),
-    isLocked: true,
-  ),
-  GameItem(
-    id: 'coming_soon_4',
-    title: '即将推出',
-    icon: Icons.more_horiz,
-    color: Color(0xFF8E8E93),
-    isLocked: true,
-  ),
-  // 第二页 - 预留槽位
-  GameItem(
-    id: 'slot_2_1',
-    title: '即将推出',
-    icon: Icons.more_horiz,
-    color: Color(0xFF8E8E93),
-    isLocked: true,
-  ),
-  GameItem(
-    id: 'slot_2_2',
-    title: '即将推出',
-    icon: Icons.more_horiz,
-    color: Color(0xFF8E8E93),
-    isLocked: true,
-  ),
-  GameItem(
-    id: 'slot_2_3',
-    title: '即将推出',
-    icon: Icons.more_horiz,
-    color: Color(0xFF8E8E93),
-    isLocked: true,
-  ),
-  GameItem(
-    id: 'slot_2_4',
-    title: '即将推出',
-    icon: Icons.more_horiz,
-    color: Color(0xFF8E8E93),
-    isLocked: true,
-  ),
-  GameItem(
-    id: 'slot_2_5',
-    title: '即将推出',
-    icon: Icons.more_horiz,
-    color: Color(0xFF8E8E93),
-    isLocked: true,
-  ),
-  GameItem(
-    id: 'slot_2_6',
-    title: '即将推出',
-    icon: Icons.more_horiz,
+    icon: Icons.extension,
     color: Color(0xFF8E8E93),
     isLocked: true,
   ),
 ];
+
+/// 默认桌面布局
+List<DesktopItem> createDefaultDesktop() {
+  return [
+    DesktopItem(
+      id: 'pos_0_0',
+      game: allGames[0],
+      position: const Offset(0, 0),
+    ),
+    DesktopItem(
+      id: 'pos_1_0',
+      game: allGames[1],
+      position: const Offset(1, 0),
+    ),
+    DesktopItem(
+      id: 'pos_2_0',
+      game: allGames[2],
+      position: const Offset(2, 0),
+    ),
+    DesktopItem(
+      id: 'pos_0_1',
+      game: allGames[3],
+      position: const Offset(0, 1),
+    ),
+    DesktopItem(
+      id: 'pos_1_1',
+      game: allGames[4],
+      position: const Offset(1, 1),
+    ),
+    DesktopItem(
+      id: 'pos_2_1',
+      folder: GameFolder(
+        id: 'folder_1',
+        games: [allGames[5], allGames[6]],
+        color: Color(0xFF8E8E93),
+      ),
+      position: const Offset(2, 1),
+    ),
+  ];
+}
+
+/// 格子大小
+const double gridSize = 70.0;
+const double gridSpacing = 16.0;
 
 /// 游戏中心主页面
 class _GameHubPage extends StatefulWidget {
@@ -133,21 +218,21 @@ class _GameHubPage extends StatefulWidget {
 }
 
 class _GameHubPageState extends State<_GameHubPage> {
+  late List<DesktopItem> desktopItems;
+  DesktopItem? draggingItem;
+  Offset? dragOffset;
+
   @override
-  Widget build(BuildContext context) {
-    return const _GameHubCard();
+  void initState() {
+    super.initState();
+    desktopItems = createDefaultDesktop();
   }
-}
 
-/// 游戏中心缩略卡片 - 与其他 Demo 卡片尺寸一致
-class _GameHubCard extends StatelessWidget {
-  const _GameHubCard();
-
-  void _openOverlay(BuildContext context) {
+  void _openFolderOverlay(GameFolder folder) {
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const _GameHubOverlay(),
+            _GameFolderOverlay(folder: folder),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(0.0, 1.0);
           const end = Offset.zero;
@@ -176,64 +261,315 @@ class _GameHubCard extends StatelessWidget {
     );
   }
 
+  void _handleGameTap(GameItem game) {
+    if (game.isLocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Text('${game.title} 敬请期待'),
+            ],
+          ),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(game.icon, color: Colors.white),
+            const SizedBox(width: 8),
+            Text('启动游戏：${game.title}'),
+          ],
+        ),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _onDragStart(DesktopItem item) {
+    setState(() {
+      draggingItem = item;
+    });
+  }
+
+  void _onDragUpdate(Offset delta) {
+    setState(() {
+      dragOffset = (dragOffset ?? Offset.zero) + delta;
+    });
+  }
+
+  void _onDragEnd(Offset position) {
+    // 计算放置位置
+    final col = ((position.dx + gridSize / 2) / (gridSize + gridSpacing)).floor();
+    final row = ((position.dy + gridSize / 2) / (gridSize + gridSpacing)).floor();
+
+    // 检查是否与现有项目重叠
+    DesktopItem? targetItem;
+    for (var item in desktopItems) {
+      if (item.id != draggingItem?.id) {
+        final itemCol = item.position.dx.toInt();
+        final itemRow = item.position.dy.toInt();
+        if (itemCol == col && itemRow == row) {
+          targetItem = item;
+          break;
+        }
+      }
+    }
+
+    if (targetItem != null && draggingItem != null) {
+      // 合并到文件夹
+      _mergeToFolder(draggingItem!, targetItem);
+    } else {
+      // 更新位置
+      setState(() {
+        final index = desktopItems.indexWhere((item) => item.id == draggingItem?.id);
+        if (index != -1) {
+          desktopItems[index] = desktopItems[index].copyWith(
+            position: Offset(col.toDouble(), row.toDouble()),
+          );
+        }
+        draggingItem = null;
+        dragOffset = null;
+      });
+    }
+  }
+
+  void _mergeToFolder(DesktopItem source, DesktopItem target) {
+    setState(() {
+      List<GameItem> folderGames = [];
+
+      if (source.game != null) folderGames.add(source.game!);
+      if (target.game != null) folderGames.add(target.game!);
+
+      // 如果目标是文件夹，添加其内容
+      if (target.folder != null) {
+        folderGames.addAll(target.folder!.games);
+      }
+
+      // 如果源是文件夹，添加其内容
+      if (source.folder != null) {
+        folderGames.addAll(source.folder!.games);
+      }
+
+      // 创建新文件夹
+      final newFolder = GameFolder(
+        id: 'folder_${DateTime.now().millisecondsSinceEpoch}',
+        games: folderGames,
+        color: const Color(0xFF8E8E93),
+      );
+
+      // 移除源项目和目标项目，添加新文件夹
+      desktopItems.removeWhere((item) => item.id == source.id || item.id == target.id);
+      desktopItems.add(
+        DesktopItem(
+          id: newFolder.id,
+          folder: newFolder,
+          position: target.position,
+        ),
+      );
+
+      draggingItem = null;
+      dragOffset = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _openOverlay(context),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                theme.colorScheme.primary.withValues(alpha: 0.08),
-                theme.colorScheme.primary.withValues(alpha: 0.03),
-              ],
-            ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.primary.withValues(alpha: 0.08),
+              theme.colorScheme.primary.withValues(alpha: 0.03),
+            ],
           ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.videogame_asset,
-                color: theme.colorScheme.primary,
-                size: 32,
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.videogame_asset,
+              color: theme.colorScheme.primary,
+              size: 32,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '游戏中心',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 12),
-              Text(
-                '游戏中心',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: Text(
+                '拖拽图标可自由排布或合并文件夹',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
-              Expanded(
-                child: Text(
-                  '液态玻璃风格游戏集合',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+            ),
+            const SizedBox(height: 12),
+            // 游戏桌面
+            _buildDesktop(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktop() {
+    return SizedBox(
+      height: 156,
+      child: Stack(
+        children: [
+          // 网格背景
+          ..._buildGridBackground(),
+          // 桌面项目
+          ...desktopItems.map((item) => _buildDesktopItem(item)),
+          // 拖拽中的项目
+          if (draggingItem != null && dragOffset != null)
+            _buildDraggingItem(),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildGridBackground() {
+    List<Widget> widgets = [];
+    for (int row = 0; row < 2; row++) {
+      for (int col = 0; col < 3; col++) {
+        widgets.add(
+          Positioned(
+            left: col * (gridSize + gridSpacing),
+            top: row * (gridSize + gridSpacing),
+            child: Container(
+              width: gridSize,
+              height: gridSize,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 8),
-              // 游戏预览图标
-              Row(
-                children: [
-                  _buildPreviewIcon(context, Icons.piano, const Color(0xFF1C1C1E)),
-                  const SizedBox(width: 6),
-                  _buildPreviewIcon(context, Icons.grid_on, const Color(0xFFEDC22E)),
-                  const SizedBox(width: 6),
-                  _buildPreviewIcon(context, Icons.more_horiz, const Color(0xFF8E8E93), isSmall: true),
-                ],
+            ),
+          ),
+        );
+      }
+    }
+    return widgets;
+  }
+
+  Widget _buildDesktopItem(DesktopItem item) {
+    final isDragging = draggingItem?.id == item.id;
+
+    return Positioned(
+      left: item.position.dx * (gridSize + gridSpacing),
+      top: item.position.dy * (gridSize + gridSpacing),
+      child: GestureDetector(
+        onPanStart: (_) => _onDragStart(item),
+        onPanUpdate: (details) {
+          if (draggingItem?.id == item.id) {
+            _onDragUpdate(details.delta);
+          }
+        },
+        onPanEnd: (_) {
+          if (draggingItem?.id == item.id) {
+            _onDragEnd(Offset(
+              item.position.dx * (gridSize + gridSpacing),
+              item.position.dy * (gridSize + gridSpacing),
+            ) + (dragOffset ?? Offset.zero));
+          }
+        },
+        onTap: item.isFolder ? () => _openFolderOverlay(item.folder!) : null,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: isDragging ? 0.5 : 1.0,
+          child: item.isFolder
+              ? _buildFolderIcon(item.folder!)
+              : _buildGameIcon(item.game!),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDraggingItem() {
+    if (draggingItem == null) return const SizedBox();
+
+    return Positioned(
+      left: (draggingItem!.position.dx * (gridSize + gridSpacing)) + (dragOffset?.dx ?? 0),
+      top: (draggingItem!.position.dy * (gridSize + gridSpacing)) + (dragOffset?.dy ?? 0),
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: 0.8,
+          child: draggingItem!.isFolder
+              ? _buildFolderIcon(draggingItem!.folder!)
+              : _buildGameIcon(draggingItem!.game!),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGameIcon(GameItem game) {
+    return Container(
+      width: gridSize,
+      height: gridSize,
+      decoration: BoxDecoration(
+        color: game.color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: game.color.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Icon(
+        game.isLocked ? Icons.lock_outline : game.icon,
+        color: game.isLocked
+            ? const Color(0xFF8E8E93)
+            : game.color.withValues(alpha: 0.8),
+        size: gridSize * 0.5,
+      ),
+    );
+  }
+
+  Widget _buildFolderIcon(GameFolder folder) {
+    // 液态玻璃文件夹缩略图标
+    return Container(
+      width: gridSize,
+      height: gridSize,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Stack(
+            children: [
+              // 显示前4个游戏的图标缩略
+              Positioned.fill(
+                child: _buildFolderPreview(folder.games),
               ),
             ],
           ),
@@ -242,19 +578,37 @@ class _GameHubCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPreviewIcon(BuildContext context, IconData icon, Color color, {bool isSmall = false}) {
-    return Container(
-      width: isSmall ? 28 : 32,
-      height: isSmall ? 28 : 32,
-      decoration: BoxDecoration(
-        color: color.withOpacity(isSmall ? 0.5 : 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Icon(
-        icon,
-        color: color,
-        size: isSmall ? 14 : 18,
-      ),
+  Widget _buildFolderPreview(List<GameItem> games) {
+    final displayGames = games.take(4).toList();
+    final rows = (displayGames.length / 2).ceil();
+
+    return Column(
+      children: List.generate(rows, (row) {
+        final start = row * 2;
+        final end = (start + 2).clamp(0, displayGames.length);
+        final rowGames = displayGames.sublist(start, end);
+
+        return Expanded(
+          child: Row(
+            children: rowGames.map((game) {
+              return Expanded(
+                child: Container(
+                  margin: const EdgeInsets.all(1),
+                  decoration: BoxDecoration(
+                    color: game.color.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    game.icon,
+                    color: game.color.withValues(alpha: 0.8),
+                    size: gridSize * 0.2,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      }),
     );
   }
 }
@@ -302,101 +656,28 @@ class _GlassGameCard extends StatelessWidget {
   }
 }
 
-/// 游戏图标组件
-class _GameIconWidget extends StatelessWidget {
-  final GameItem game;
-  final VoidCallback? onTap;
+/// 文件夹弹窗
+class _GameFolderOverlay extends StatefulWidget {
+  final GameFolder folder;
 
-  const _GameIconWidget({
-    required this.game,
-    this.onTap,
-  });
+  const _GameFolderOverlay({required this.folder});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLocked = game.isLocked;
-
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 200),
-      opacity: isLocked ? 0.5 : 1.0,
-      child: GestureDetector(
-        onTap: isLocked ? null : onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: isLocked
-                ? const Color(0xFFF2F2F7)
-                : game.color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isLocked
-                  ? const Color(0xFFE5E5EA)
-                  : game.color.withValues(alpha: 0.3),
-              width: 1,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: isLocked
-                      ? const Color(0xFFE5E5EA)
-                      : game.color,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isLocked ? Icons.lock_outline : game.icon,
-                  color: isLocked ? const Color(0xFF8E8E93) : Colors.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                game.title,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: isLocked
-                      ? const Color(0xFF8E8E93)
-                      : const Color(0xFF1C1C1E),
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<_GameFolderOverlay> createState() => _GameFolderOverlayState();
 }
 
-/// 游戏中心展开弹窗
-class _GameHubOverlay extends StatefulWidget {
-  const _GameHubOverlay();
-
-  @override
-  State<_GameHubOverlay> createState() => _GameHubOverlayState();
-}
-
-class _GameHubOverlayState extends State<_GameHubOverlay> {
+class _GameFolderOverlayState extends State<_GameFolderOverlay> {
   late PageController _pageController;
+  late List<List<GameItem>> _pages;
   int _currentPage = 0;
 
-  // 每页显示的游戏数量
-  static const int gamesPerPage = 6;
-  static const int gridColumns = 3;
-
-  late List<List<GameItem>> _pages;
+  static const int gamesPerPage = 9;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    _pages = _paginateGames(initialGames, gamesPerPage);
+    _pages = _paginateGames(widget.folder.games, gamesPerPage);
   }
 
   @override
@@ -405,7 +686,6 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
     super.dispose();
   }
 
-  /// 将游戏列表分页
   List<List<GameItem>> _paginateGames(List<GameItem> games, int perPage) {
     List<List<GameItem>> pages = [];
     for (int i = 0; i < games.length; i += perPage) {
@@ -420,11 +700,16 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
   }
 
   void _handleGameTap(GameItem game) {
-    if (game.isLocked || game.route == null) {
-      // 显示"即将推出"提示
+    if (game.isLocked) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('🎮 敬请期待！'),
+          content: Row(
+            children: [
+              Icon(Icons.lock_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text('敬请期待'),
+            ],
+          ),
           duration: Duration(seconds: 1),
           behavior: SnackBarBehavior.floating,
         ),
@@ -432,11 +717,16 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
       return;
     }
 
-    // 根据路由导航到对应游戏
-    // 这里暂时显示提示，等待具体游戏实现
+    Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('🎮 启动游戏：${game.title}'),
+        content: Row(
+          children: [
+            Icon(game.icon, color: Colors.white),
+            const SizedBox(width: 8),
+            Text('启动游戏：${game.title}'),
+          ],
+        ),
         duration: const Duration(seconds: 1),
         behavior: SnackBarBehavior.floating,
       ),
@@ -452,14 +742,14 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // 背景模糊遮罩
+          // 纯透明模糊遮罩
           Positioned.fill(
             child: GestureDetector(
               onTap: _closeOverlay,
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                 child: Container(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: Colors.transparent,
                 ),
               ),
             ),
@@ -478,15 +768,23 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
                       // 标题栏
                       Row(
                         children: [
-                          Icon(
-                            Icons.videogame_asset,
-                            color: theme.colorScheme.primary,
-                            size: 28,
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: widget.folder.color.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.folder,
+                              color: widget.folder.color.withValues(alpha: 0.8),
+                              size: 20,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            '游戏中心',
-                            style: theme.textTheme.headlineSmall?.copyWith(
+                            '${widget.folder.games.length} 个游戏',
+                            style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: const Color(0xFF1C1C1E),
                             ),
@@ -502,9 +800,9 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
 
                       const SizedBox(height: 24),
 
-                      // 游戏网格
+                      // 九宫格游戏网格
                       SizedBox(
-                        height: 280,
+                        height: 320,
                         child: PageView.builder(
                           controller: _pageController,
                           onPageChanged: (index) {
@@ -534,13 +832,12 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
     );
   }
 
-  /// 构建游戏网格
   Widget _buildGameGrid(List<GameItem> games) {
     return GridView.builder(
       padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: gridColumns,
+        crossAxisCount: 3,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
         childAspectRatio: 1.0,
@@ -555,7 +852,6 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
     );
   }
 
-  /// 构建页码指示器
   Widget _buildPageIndicator() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -571,6 +867,60 @@ class _GameHubOverlayState extends State<_GameHubOverlay> {
                 ? Theme.of(context).colorScheme.primary
                 : const Color(0xFFE5E5EA),
             borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 游戏图标组件
+class _GameIconWidget extends StatelessWidget {
+  final GameItem game;
+  final VoidCallback? onTap;
+
+  const _GameIconWidget({
+    required this.game,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isLocked = game.isLocked;
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: isLocked ? 0.5 : 1.0,
+      child: GestureDetector(
+        onTap: isLocked ? null : onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: game.color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: game.color.withValues(alpha: 0.2),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: isLocked
+                      ? const Color(0xFFE5E5EA)
+                      : game.color,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  isLocked ? Icons.lock_outline : game.icon,
+                  color: isLocked ? const Color(0xFF8E8E93) : Colors.white,
+                  size: 28,
+                ),
+              ),
+            ],
           ),
         ),
       ),
