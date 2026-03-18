@@ -16,6 +16,7 @@ import 'lab/demos/canvas_demo.dart';
 import 'lab/demos/drag_reorder_demo.dart';
 import 'lab/demos/web_preview_demo.dart';
 import 'lab/demos/storage_analyze_demo.dart';
+import 'lab/demos/hexagon_panel_demo.dart';
 import 'lab/providers/lab_note_provider.dart';
 import 'lab/providers/lab_clock_provider.dart';
 
@@ -30,6 +31,7 @@ void main() {
   registerDragReorderDemo();
   registerWebPreviewDemo();
   registerStorageAnalyzeDemo();
+  registerHexagonPanelDemo();
   runApp(const MyApp());
 }
 
