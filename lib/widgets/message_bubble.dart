@@ -7,7 +7,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import '../models/models.dart';
 
-class MessageBubble extends StatelessWidget {
+class MessageBubble extends StatefulWidget {
   final Message message;
   final bool isMe;
   final User? sender;
@@ -20,10 +20,23 @@ class MessageBubble extends StatelessWidget {
   });
 
   @override
+  State<MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends State<MessageBubble> {
+  AudioPlayer? _audioPlayer;
+
+  @override
+  void dispose() {
+    _audioPlayer?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final now = DateTime.now();
-    final difference = now.difference(message.createdAt);
+    final difference = now.difference(widget.message.createdAt);
 
     String timeText;
     if (difference.inMinutes < 1) {
@@ -31,24 +44,24 @@ class MessageBubble extends StatelessWidget {
     } else if (difference.inHours < 1) {
       timeText = '${difference.inMinutes}分钟前';
     } else if (difference.inDays < 1) {
-      timeText = DateFormat('HH:mm').format(message.createdAt);
+      timeText = DateFormat('HH:mm').format(widget.message.createdAt);
     } else {
-      timeText = DateFormat('MM/dd HH:mm').format(message.createdAt);
+      timeText = DateFormat('MM/dd HH:mm').format(widget.message.createdAt);
     }
 
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
         child: Column(
           crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              widget.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            if (!isMe && sender != null)
+            if (!widget.isMe && widget.sender != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4, left: 12),
                 child: Text(
-                  sender!.nickname,
+                  widget.sender!.nickname,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
@@ -57,12 +70,12 @@ class MessageBubble extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!isMe && sender?.avatar != null)
+                if (!widget.isMe && widget.sender?.avatar != null)
                   CircleAvatar(
                     radius: 16,
-                    backgroundImage: NetworkImage(sender!.avatar!),
+                    backgroundImage: NetworkImage(widget.sender!.avatar!),
                   ),
-                if (!isMe) const SizedBox(width: 8),
+                if (!widget.isMe) const SizedBox(width: 8),
                 Flexible(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -70,11 +83,11 @@ class MessageBubble extends StatelessWidget {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: isMe
+                      color: widget.isMe
                           ? theme.colorScheme.primary
                           : theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(20),
-                      gradient: isMe
+                      gradient: widget.isMe
                           ? LinearGradient(
                               colors: [
                                 theme.colorScheme.primary,
@@ -91,7 +104,7 @@ class MessageBubble extends StatelessWidget {
                         Text(
                           timeText,
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: isMe
+                            color: widget.isMe
                                 ? theme.colorScheme.onPrimary.withOpacity(0.7)
                                 : theme.colorScheme.onSurface.withOpacity(0.5),
                           ),
@@ -113,9 +126,9 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildStatusIcon(ThemeData theme) {
-    if (!isMe) return const SizedBox.shrink();
+    if (!widget.isMe) return const SizedBox.shrink();
 
-    switch (message.status) {
+    switch (widget.message.status) {
       case MessageStatus.sending:
         return Padding(
           padding: const EdgeInsets.only(right: 16),
@@ -159,7 +172,7 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildMessageContent(BuildContext context, ThemeData theme) {
-    switch (message.type) {
+    switch (widget.message.type) {
       case MessageType.image:
         return _buildImageMessage(context, theme);
       case MessageType.video:
@@ -171,9 +184,9 @@ class MessageBubble extends StatelessWidget {
       case MessageType.text:
       case MessageType.system:
         return Text(
-          message.content,
+          widget.message.content,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: isMe
+            color: widget.isMe
                 ? theme.colorScheme.onPrimary
                 : theme.colorScheme.onSurface,
           ),
@@ -182,7 +195,7 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildImageMessage(BuildContext context, ThemeData theme) {
-    final filePath = message.content;
+    final filePath = widget.message.content;
 
     return GestureDetector(
       onTap: () => _showImageViewer(context, filePath),
@@ -274,7 +287,7 @@ class MessageBubble extends StatelessWidget {
               const Icon(Icons.videocam, size: 48, color: Colors.white70)
             else
               Image.file(
-                File(message.content),
+                File(widget.message.content),
                 width: double.infinity,
                 height: double.infinity,
                 fit: BoxFit.cover,
@@ -313,7 +326,7 @@ class MessageBubble extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _VideoPlayerPage(videoPath: message.content),
+        builder: (context) => _VideoPlayerPage(videoPath: widget.message.content),
       ),
     );
   }
@@ -324,7 +337,7 @@ class MessageBubble extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isMe
+          color: widget.isMe
               ? theme.colorScheme.primary.withOpacity(0.2)
               : theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
@@ -334,7 +347,7 @@ class MessageBubble extends StatelessWidget {
           children: [
             Icon(
               Icons.play_circle_filled,
-              color: isMe
+              color: widget.isMe
                   ? theme.colorScheme.onPrimary
                   : theme.colorScheme.primary,
               size: 32,
@@ -346,7 +359,7 @@ class MessageBubble extends StatelessWidget {
             Text(
               '语音',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isMe
+                color: widget.isMe
                     ? theme.colorScheme.onPrimary
                     : theme.colorScheme.onSurface,
               ),
@@ -357,11 +370,10 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
-
   void _playAudio(BuildContext context) async {
     try {
-      await _audioPlayer.play(DeviceFileSource(message.content));
+      _audioPlayer ??= AudioPlayer();
+      await _audioPlayer!.play(DeviceFileSource(widget.message.content));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('正在播放语音...'), duration: Duration(seconds: 1)),
@@ -385,7 +397,7 @@ class MessageBubble extends StatelessWidget {
           height: 12 + (index * 4).toDouble() % 12,
           margin: const EdgeInsets.symmetric(horizontal: 1),
           decoration: BoxDecoration(
-            color: (isMe
+            color: (widget.isMe
                     ? theme.colorScheme.onPrimary
                     : theme.colorScheme.primary)
                 .withOpacity(0.6),
@@ -397,13 +409,13 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildFileMessage(BuildContext context, ThemeData theme) {
-    final fileName = message.content.split('/').last;
+    final fileName = widget.message.content.split('/').last;
 
     return Container(
       padding: const EdgeInsets.all(12),
       constraints: const BoxConstraints(maxWidth: 220),
       decoration: BoxDecoration(
-        color: isMe
+        color: widget.isMe
             ? theme.colorScheme.primary.withOpacity(0.2)
             : theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
@@ -413,7 +425,7 @@ class MessageBubble extends StatelessWidget {
         children: [
           Icon(
             _getFileIcon(fileName),
-            color: isMe
+            color: widget.isMe
                 ? theme.colorScheme.onPrimary
                 : theme.colorScheme.primary,
             size: 32,
@@ -427,7 +439,7 @@ class MessageBubble extends StatelessWidget {
                 Text(
                   fileName,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isMe
+                    color: widget.isMe
                         ? theme.colorScheme.onPrimary
                         : theme.colorScheme.onSurface,
                   ),
@@ -438,7 +450,7 @@ class MessageBubble extends StatelessWidget {
                 Text(
                   '文件',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: (isMe
+                    color: (widget.isMe
                             ? theme.colorScheme.onPrimary
                             : theme.colorScheme.onSurface)
                         .withOpacity(0.6),
