@@ -89,7 +89,7 @@ class KVApi {
   ///   Key
   Future<Response> apiV1KvKeyDeleteWithHttpInfo({ String? key, }) async {
     // ignore: prefer_const_declarations
-    final path = r'/api/v1/kv/:key';
+    var path = r'/api/v1/kv/:key';
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -98,8 +98,9 @@ class KVApi {
     final headerParams = <String, String>{};
     final formParams = <String, String>{};
 
+    // Replace path parameter
     if (key != null) {
-      queryParams.addAll(_queryParams('', 'key', key));
+      path = path.replaceAll(':key', key);
     }
 
     const contentTypes = <String>[];
@@ -147,7 +148,7 @@ class KVApi {
   ///   Key
   Future<Response> apiV1KvKeyGetWithHttpInfo({ String? key, }) async {
     // ignore: prefer_const_declarations
-    final path = r'/api/v1/kv/:key';
+    var path = r'/api/v1/kv/:key';
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -156,8 +157,9 @@ class KVApi {
     final headerParams = <String, String>{};
     final formParams = <String, String>{};
 
+    // Replace path parameter
     if (key != null) {
-      queryParams.addAll(_queryParams('', 'key', key));
+      path = path.replaceAll(':key', key);
     }
 
     const contentTypes = <String>[];

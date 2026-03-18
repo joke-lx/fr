@@ -26,7 +26,7 @@ class FileApi {
   ///   File ID
   Future<Response> apiV1DownloadIdGetWithHttpInfo({ String? id, }) async {
     // ignore: prefer_const_declarations
-    final path = r'/api/v1/download/:id';
+    var path = r'/api/v1/download/:id';
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -35,8 +35,9 @@ class FileApi {
     final headerParams = <String, String>{};
     final formParams = <String, String>{};
 
+    // Replace path parameter
     if (id != null) {
-      queryParams.addAll(_queryParams('', 'id', id));
+      path = path.replaceAll(':id', id);
     }
 
     const contentTypes = <String>[];
@@ -84,7 +85,7 @@ class FileApi {
   ///   File ID
   Future<Response> apiV1FileIdDeleteWithHttpInfo({ String? id, }) async {
     // ignore: prefer_const_declarations
-    final path = r'/api/v1/file/:id';
+    var path = r'/api/v1/file/:id';
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -93,8 +94,9 @@ class FileApi {
     final headerParams = <String, String>{};
     final formParams = <String, String>{};
 
+    // Replace path parameter
     if (id != null) {
-      queryParams.addAll(_queryParams('', 'id', id));
+      path = path.replaceAll(':id', id);
     }
 
     const contentTypes = <String>[];
@@ -142,7 +144,7 @@ class FileApi {
   ///   File ID
   Future<Response> apiV1FileIdMetadataGetWithHttpInfo({ String? id, }) async {
     // ignore: prefer_const_declarations
-    final path = r'/api/v1/file/:id/metadata';
+    var path = r'/api/v1/file/:id/metadata';
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -151,8 +153,9 @@ class FileApi {
     final headerParams = <String, String>{};
     final formParams = <String, String>{};
 
+    // Replace path parameter
     if (id != null) {
-      queryParams.addAll(_queryParams('', 'id', id));
+      path = path.replaceAll(':id', id);
     }
 
     const contentTypes = <String>[];
