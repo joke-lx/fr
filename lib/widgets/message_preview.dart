@@ -53,7 +53,7 @@ class MessagePreviewWidget extends StatelessWidget {
 
     return Container(
       width: 100,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
@@ -67,29 +67,38 @@ class MessagePreviewWidget extends StatelessWidget {
         children: [
           // 预览内容
           SizedBox(
-            width: 84,
-            height: 60,
+            width: 88,
+            height: 56,
             child: _buildPreviewContent(context),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           // 操作按钮
           Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                icon: const Icon(Icons.close, size: 16),
-                onPressed: onRemove,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              InkWell(
+                onTap: onRemove,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
               ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.send, size: 20),
-                onPressed: onSend,
-                color: theme.colorScheme.primary,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              InkWell(
+                onTap: onSend,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.send,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ),
             ],
           ),
