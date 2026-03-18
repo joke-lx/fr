@@ -65,11 +65,7 @@ class GameFolder {
     required this.color,
   });
 
-  GameFolder copyWith({
-    String? id,
-    List<GameItem>? games,
-    Color? color,
-  }) {
+  GameFolder copyWith({String? id, List<GameItem>? games, Color? color}) {
     return GameFolder(
       id: id ?? this.id,
       games: games ?? this.games,
@@ -168,31 +164,11 @@ const List<GameItem> allGames = [
 /// 默认桌面布局
 List<DesktopItem> createDefaultDesktop() {
   return [
-    DesktopItem(
-      id: 'pos_0_0',
-      game: allGames[0],
-      position: const Offset(0, 0),
-    ),
-    DesktopItem(
-      id: 'pos_1_0',
-      game: allGames[1],
-      position: const Offset(1, 0),
-    ),
-    DesktopItem(
-      id: 'pos_2_0',
-      game: allGames[2],
-      position: const Offset(2, 0),
-    ),
-    DesktopItem(
-      id: 'pos_0_1',
-      game: allGames[3],
-      position: const Offset(0, 1),
-    ),
-    DesktopItem(
-      id: 'pos_1_1',
-      game: allGames[4],
-      position: const Offset(1, 1),
-    ),
+    DesktopItem(id: 'pos_0_0', game: allGames[0], position: const Offset(0, 0)),
+    DesktopItem(id: 'pos_1_0', game: allGames[1], position: const Offset(1, 0)),
+    DesktopItem(id: 'pos_2_0', game: allGames[2], position: const Offset(2, 0)),
+    DesktopItem(id: 'pos_0_1', game: allGames[3], position: const Offset(0, 1)),
+    DesktopItem(id: 'pos_1_1', game: allGames[4], position: const Offset(1, 1)),
     DesktopItem(
       id: 'pos_2_1',
       folder: GameFolder(
@@ -206,7 +182,6 @@ List<DesktopItem> createDefaultDesktop() {
 }
 
 /// 格子大小
-const double gridSize = 70.0;
 const double gridSpacing = 16.0;
 
 /// 游戏中心主页面
@@ -238,13 +213,15 @@ class _GameHubPageState extends State<_GameHubPage> {
           const end = Offset.zero;
           const curve = Curves.easeOutCubic;
 
-          var tween = Tween(begin: begin, end: end).chain(
-            CurveTween(curve: curve),
-          );
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
 
-          var fadeTween = Tween<double>(begin: 0.0, end: 1.0).chain(
-            CurveTween(curve: curve),
-          );
+          var fadeTween = Tween<double>(
+            begin: 0.0,
+            end: 1.0,
+          ).chain(CurveTween(curve: curve));
 
           return SlideTransition(
             position: animation.drive(tween),
@@ -297,6 +274,7 @@ class _GameHubPageState extends State<_GameHubPage> {
   void _onDragStart(DesktopItem item) {
     setState(() {
       draggingItem = item;
+      dragOffset = Offset.zero; // 立即初始化，使占位符立即显示
     });
   }
 
@@ -306,10 +284,16 @@ class _GameHubPageState extends State<_GameHubPage> {
     });
   }
 
-  void _onDragEnd(Offset position) {
+  void _onDragEnd(Offset position, double cellWidth, double cellHeight, int visibleRowCount) {
     // 计算放置位置
-    final col = ((position.dx + gridSize / 2) / (gridSize + gridSpacing)).floor();
-    final row = ((position.dy + gridSize / 2) / (gridSize + gridSpacing)).floor();
+    final col = ((position.dx + cellWidth / 2) / (cellWidth + gridSpacing))
+        .floor();
+    final row = ((position.dy + cellHeight / 2) / (cellHeight + gridSpacing))
+        .floor();
+
+    // 限制在可视区域内（0 到 visibleRowCount-1）
+    final clampedCol = col.clamp(0, 5); // 6列，索引0-5
+    final clampedRow = row.clamp(0, visibleRowCount - 1);
 
     // 检查是否与现有项目重叠
     DesktopItem? targetItem;
@@ -317,7 +301,7 @@ class _GameHubPageState extends State<_GameHubPage> {
       if (item.id != draggingItem?.id) {
         final itemCol = item.position.dx.toInt();
         final itemRow = item.position.dy.toInt();
-        if (itemCol == col && itemRow == row) {
+        if (itemCol == clampedCol && itemRow == clampedRow) {
           targetItem = item;
           break;
         }
@@ -330,10 +314,12 @@ class _GameHubPageState extends State<_GameHubPage> {
     } else {
       // 更新位置
       setState(() {
-        final index = desktopItems.indexWhere((item) => item.id == draggingItem?.id);
+        final index = desktopItems.indexWhere(
+          (item) => item.id == draggingItem?.id,
+        );
         if (index != -1) {
           desktopItems[index] = desktopItems[index].copyWith(
-            position: Offset(col.toDouble(), row.toDouble()),
+            position: Offset(clampedCol.toDouble(), clampedRow.toDouble()),
           );
         }
         draggingItem = null;
@@ -367,7 +353,9 @@ class _GameHubPageState extends State<_GameHubPage> {
       );
 
       // 移除源项目和目标项目，添加新文件夹
-      desktopItems.removeWhere((item) => item.id == source.id || item.id == target.id);
+      desktopItems.removeWhere(
+        (item) => item.id == source.id || item.id == target.id,
+      );
       desktopItems.add(
         DesktopItem(
           id: newFolder.id,
@@ -417,19 +405,8 @@ class _GameHubPageState extends State<_GameHubPage> {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
-            Expanded(
-              child: Text(
-                '拖拽图标可自由排布或合并文件夹',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: 12),
-            // 游戏桌面
-            _buildDesktop(),
+            // 游戏桌面 - 填满剩余空间
+            Expanded(flex: 1, child: _buildDesktop()),
           ],
         ),
       ),
@@ -437,33 +414,96 @@ class _GameHubPageState extends State<_GameHubPage> {
   }
 
   Widget _buildDesktop() {
-    return SizedBox(
-      height: 156,
-      child: Stack(
-        children: [
-          // 网格背景
-          ..._buildGridBackground(),
-          // 桌面项目
-          ...desktopItems.map((item) => _buildDesktopItem(item)),
-          // 拖拽中的项目
-          if (draggingItem != null && dragOffset != null)
-            _buildDraggingItem(),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 根据容器宽度计算格子大小
+        final availableWidth = constraints.maxWidth;
+        final availableHeight = constraints.maxHeight;
+
+        // 使用可视区域行数（根据可用高度动态计算）
+        final spacing = 16.0;
+        final colCount = 6;
+
+        // 先计算单列宽度
+        final totalHorizontalSpacing = spacing * (colCount - 1);
+        final cellWidth = (availableWidth - totalHorizontalSpacing) / colCount;
+
+        // 根据高度计算能显示多少行（每行高度 = 格子宽度，保持正方形）
+        final usableHeight = availableHeight * 0.9;
+        final visibleRowCount = ((usableHeight + spacing) / (cellWidth + spacing)).floor().clamp(2, 9);
+
+        final cellHeight = cellWidth;
+
+        // 计算可视区域总高度
+        final visibleGridHeight = visibleRowCount * cellHeight + spacing * (visibleRowCount - 1);
+
+        // 检查是否有超出可视区域的项目
+        final hasOverflowItems = desktopItems.any(
+          (item) => item.position.dy.toInt() >= visibleRowCount,
+        );
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // 网格和桌面项目（有高度限制）
+            Center(
+              child: SizedBox(
+                width: colCount * cellWidth + totalHorizontalSpacing,
+                height: visibleGridHeight,
+                child: Stack(
+                  children: [
+                    // 网格背景 - 只在拖动时显示
+                    if (draggingItem != null)
+                      ..._buildGridBackground(
+                        cellWidth,
+                        cellHeight,
+                        visibleRowCount,
+                        colCount,
+                      ),
+                    // 桌面项目 - 只显示可视区域内的（拖动中的项目隐藏原位置）
+                    ...desktopItems
+                        .where((item) =>
+                            item.position.dy.toInt() < visibleRowCount &&
+                            item.id != draggingItem?.id)
+                        .map(
+                          (item) => _buildDesktopItem(item, cellWidth, cellHeight),
+                        ),
+                    // 占位符 - 拖动时显示在原位置
+                    if (draggingItem != null && dragOffset != null)
+                      _buildPlaceholder(draggingItem!, cellWidth, cellHeight),
+                    // 超出可视区域的项目指示器
+                    if (hasOverflowItems)
+                      _buildOverflowIndicator(cellWidth, cellHeight, colCount),
+                  ],
+                ),
+              ),
+            ),
+            // 拖动项 - 在 Stack 顶部渲染，不受高度限制
+            if (draggingItem != null && dragOffset != null)
+              _buildDraggingItem(cellWidth, cellHeight),
+          ],
+        );
+      },
     );
   }
 
-  List<Widget> _buildGridBackground() {
+  /// 网格背景 - 根据行列数生成
+  List<Widget> _buildGridBackground(
+    double cellWidth,
+    double cellHeight,
+    int rowCount,
+    int colCount,
+  ) {
     List<Widget> widgets = [];
-    for (int row = 0; row < 2; row++) {
-      for (int col = 0; col < 3; col++) {
+    for (int row = 0; row < rowCount; row++) {
+      for (int col = 0; col < colCount; col++) {
         widgets.add(
           Positioned(
-            left: col * (gridSize + gridSpacing),
-            top: row * (gridSize + gridSpacing),
+            left: col * (cellWidth + gridSpacing),
+            top: row * (cellHeight + gridSpacing),
             child: Container(
-              width: gridSize,
-              height: gridSize,
+              width: cellWidth,
+              height: cellHeight,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
@@ -476,12 +516,97 @@ class _GameHubPageState extends State<_GameHubPage> {
     return widgets;
   }
 
-  Widget _buildDesktopItem(DesktopItem item) {
+  /// 拖动时的占位符
+  Widget _buildPlaceholder(
+    DesktopItem item,
+    double cellWidth,
+    double cellHeight,
+  ) {
+    // 占位符显示在项目原位置
+    return Positioned(
+      left: item.position.dx * (cellWidth + gridSpacing),
+      top: item.position.dy * (cellHeight + gridSpacing),
+      child: Container(
+        width: cellWidth,
+        height: cellHeight,
+        decoration: BoxDecoration(
+          color: Colors.grey.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.grey.withValues(alpha: 0.5),
+            width: 2,
+            strokeAlign: BorderSide.strokeAlignInside,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 超出可视区域的指示器
+  Widget _buildOverflowIndicator(
+    double cellWidth,
+    double cellHeight,
+    int colCount,
+  ) {
+    return Positioned(
+      left: 0,
+      top: 0,
+      child: Container(
+        width: cellWidth * colCount + gridSpacing * (colCount - 1),
+        height: cellHeight * 2 + gridSpacing,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.3)],
+          ),
+        ),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.arrow_upward, color: Colors.white, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        '更多游戏',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopItem(
+    DesktopItem item,
+    double cellWidth,
+    double cellHeight,
+  ) {
     final isDragging = draggingItem?.id == item.id;
 
     return Positioned(
-      left: item.position.dx * (gridSize + gridSpacing),
-      top: item.position.dy * (gridSize + gridSpacing),
+      left: item.position.dx * (cellWidth + gridSpacing),
+      top: item.position.dy * (cellHeight + gridSpacing),
       child: GestureDetector(
         onPanStart: (_) => _onDragStart(item),
         onPanUpdate: (details) {
@@ -491,94 +616,91 @@ class _GameHubPageState extends State<_GameHubPage> {
         },
         onPanEnd: (_) {
           if (draggingItem?.id == item.id) {
-            _onDragEnd(Offset(
-              item.position.dx * (gridSize + gridSpacing),
-              item.position.dy * (gridSize + gridSpacing),
-            ) + (dragOffset ?? Offset.zero));
+            _onDragEnd(
+              Offset(
+                item.position.dx * (cellWidth + gridSpacing),
+                item.position.dy * (cellHeight + gridSpacing),
+              ) +
+                  (dragOffset ?? Offset.zero),
+              cellWidth,
+              cellHeight,
+              9,
+            );
           }
         },
         onTap: item.isFolder ? () => _openFolderOverlay(item.folder!) : null,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 150),
+        child: Opacity(
           opacity: isDragging ? 0.5 : 1.0,
           child: item.isFolder
-              ? _buildFolderIcon(item.folder!)
-              : _buildGameIcon(item.game!),
+              ? _buildFolderIcon(item.folder!, cellWidth, cellHeight)
+              : _buildGameIcon(item.game!, cellWidth, cellHeight),
         ),
       ),
     );
   }
 
-  Widget _buildDraggingItem() {
+  Widget _buildDraggingItem(double cellWidth, double cellHeight) {
     if (draggingItem == null) return const SizedBox();
 
     return Positioned(
-      left: (draggingItem!.position.dx * (gridSize + gridSpacing)) + (dragOffset?.dx ?? 0),
-      top: (draggingItem!.position.dy * (gridSize + gridSpacing)) + (dragOffset?.dy ?? 0),
+      left:
+          (draggingItem!.position.dx * (cellWidth + gridSpacing)) +
+          (dragOffset?.dx ?? 0),
+      top:
+          (draggingItem!.position.dy * (cellHeight + gridSpacing)) +
+          (dragOffset?.dy ?? 0),
       child: IgnorePointer(
         child: Opacity(
           opacity: 0.8,
           child: draggingItem!.isFolder
-              ? _buildFolderIcon(draggingItem!.folder!)
-              : _buildGameIcon(draggingItem!.game!),
+              ? _buildFolderIcon(draggingItem!.folder!, cellWidth, cellHeight)
+              : _buildGameIcon(draggingItem!.game!, cellWidth, cellHeight),
         ),
       ),
     );
   }
 
-  Widget _buildGameIcon(GameItem game) {
+  Widget _buildGameIcon(GameItem game, double cellWidth, double cellHeight) {
     return Container(
-      width: gridSize,
-      height: gridSize,
+      width: cellWidth,
+      height: cellHeight,
       decoration: BoxDecoration(
         color: game.color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: game.color.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: game.color.withValues(alpha: 0.3), width: 1),
       ),
       child: Icon(
         game.isLocked ? Icons.lock_outline : game.icon,
         color: game.isLocked
             ? const Color(0xFF8E8E93)
             : game.color.withValues(alpha: 0.8),
-        size: gridSize * 0.5,
+        size: cellWidth * 0.5,
       ),
     );
   }
 
-  Widget _buildFolderIcon(GameFolder folder) {
-    // 液态玻璃文件夹缩略图标
+  Widget _buildFolderIcon(
+    GameFolder folder,
+    double cellWidth,
+    double cellHeight,
+  ) {
+    // 纯色玻璃效果（移除 BackdropFilter，Web 性能优化）
     return Container(
-      width: gridSize,
-      height: gridSize,
+      width: cellWidth,
+      height: cellHeight,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
+          color: Colors.white.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: Stack(
-            children: [
-              // 显示前4个游戏的图标缩略
-              Positioned.fill(
-                child: _buildFolderPreview(folder.games),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: _buildFolderPreview(folder.games, cellWidth),
     );
   }
 
-  Widget _buildFolderPreview(List<GameItem> games) {
+  Widget _buildFolderPreview(List<GameItem> games, double cellWidth) {
     final displayGames = games.take(4).toList();
     final rows = (displayGames.length / 2).ceil();
 
@@ -601,7 +723,7 @@ class _GameHubPageState extends State<_GameHubPage> {
                   child: Icon(
                     game.icon,
                     color: game.color.withValues(alpha: 0.8),
-                    size: gridSize * 0.2,
+                    size: cellWidth * 0.2,
                   ),
                 ),
               );
@@ -619,11 +741,7 @@ class _GlassGameCard extends StatelessWidget {
   final double? width;
   final double? height;
 
-  const _GlassGameCard({
-    required this.child,
-    this.width,
-    this.height,
-  });
+  const _GlassGameCard({required this.child, this.width, this.height});
 
   @override
   Widget build(BuildContext context) {
@@ -748,9 +866,7 @@ class _GameFolderOverlayState extends State<_GameFolderOverlay> {
               onTap: _closeOverlay,
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                child: Container(
-                  color: Colors.transparent,
-                ),
+                child: Container(color: Colors.transparent),
               ),
             ),
           ),
@@ -772,7 +888,9 @@ class _GameFolderOverlayState extends State<_GameFolderOverlay> {
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: widget.folder.color.withValues(alpha: 0.15),
+                              color: widget.folder.color.withValues(
+                                alpha: 0.15,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
@@ -879,10 +997,7 @@ class _GameIconWidget extends StatelessWidget {
   final GameItem game;
   final VoidCallback? onTap;
 
-  const _GameIconWidget({
-    required this.game,
-    this.onTap,
-  });
+  const _GameIconWidget({required this.game, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -909,9 +1024,7 @@ class _GameIconWidget extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: isLocked
-                      ? const Color(0xFFE5E5EA)
-                      : game.color,
+                  color: isLocked ? const Color(0xFFE5E5EA) : game.color,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(

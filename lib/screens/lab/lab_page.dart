@@ -66,7 +66,7 @@ class LabPage extends StatelessWidget {
         crossAxisCount: 2,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: 1.1,
+        childAspectRatio: 1.0,
       ),
       itemCount: demos.length,
       itemBuilder: (context, index) {
