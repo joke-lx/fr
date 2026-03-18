@@ -372,14 +372,38 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   void _playAudio(BuildContext context) async {
     try {
+      // 检查文件是否存在
+      final file = File(widget.message.content);
+      if (!file.existsSync()) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('音频文件不存在')),
+          );
+        }
+        return;
+      }
+
       _audioPlayer ??= AudioPlayer();
+
+      // 监听播放状态
+      _audioPlayer!.onPlayerStateChanged.listen((state) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+
       await _audioPlayer!.play(DeviceFileSource(widget.message.content));
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('正在播放语音...'), duration: Duration(seconds: 1)),
+          SnackBar(
+            content: Text('播放中: ${widget.message.content.split('/').last}'),
+            duration: const Duration(seconds: 1),
+          ),
         );
       }
     } catch (e) {
+      debugPrint('播放音频失败: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('播放失败: $e')),
