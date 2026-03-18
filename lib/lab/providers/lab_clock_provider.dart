@@ -324,13 +324,14 @@ class LabClockProvider with ChangeNotifier, WidgetsBindingObserver {
     if (record.completed) {
       return record.accumulatedSeconds ?? 0;
     }
-    // 进行中：计算当前消耗时间
+    // 获取关联的时钟
     final clock = getClockById(record.clockId);
-    if (clock != null && clock.isRunning) {
+    if (clock != null) {
+      // 时钟存在：计算当前已消耗时间（无论是否暂停）
       return (record.durationSeconds) - clock.remainingSeconds;
     }
-    // 暂停中：显示已累积的时间
-    return record.accumulatedSeconds ?? 0;
+    // 时钟不存在且未完成：返回0
+    return 0;
   }
 
   @override
