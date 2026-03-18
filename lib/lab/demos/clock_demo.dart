@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../lab_container.dart';
 import '../models/lab_clock.dart';
 import '../models/lab_clock_record.dart';
@@ -85,6 +86,7 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LabClockProvider>().loadClocks();
+      _loadShakeState();
     });
 
     // 波浪动画 - 默认不循环，由时钟状态控制
@@ -152,6 +154,7 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
       });
       _accelerometerSubscription?.cancel();
       _accelerometerSubscription = null;
+      await _saveShakeState(false);
     } else {
       // 开启摇一摇 - 申请权限（通过震动反馈确认）
       // 震动需要 VIBRATE 权限（已在 AndroidManifest 中配置）
@@ -160,7 +163,26 @@ class _ClockDemoPageState extends State<_ClockDemoPage> with TickerProviderState
         _shakeToStartEnabled = true;
       });
       _startAccelerometerListening();
+      await _saveShakeState(true);
     }
+  }
+
+  // 加载保存的摇一摇状态
+  Future<void> _loadShakeState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('shake_to_start_enabled') ?? false;
+    if (enabled && mounted) {
+      setState(() {
+        _shakeToStartEnabled = true;
+      });
+      _startAccelerometerListening();
+    }
+  }
+
+  // 保存摇一摇状态
+  Future<void> _saveShakeState(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('shake_to_start_enabled', enabled);
   }
 
   // 开始监听加速度传感器
