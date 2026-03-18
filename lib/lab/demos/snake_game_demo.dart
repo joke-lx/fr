@@ -105,10 +105,15 @@ class _SnakeGamePageState extends State<_SnakeGamePage> {
   }
 
   void _generateFood() {
-    _foodPosition = Random().nextInt(_noOfRow * _noOfColumn);
-    if (_borderList.contains(_foodPosition) || _snakePosition.contains(_foodPosition)) {
-      _generateFood();
-    }
+    // 使用循环而非递归，避免栈溢出
+    int attempts = 0;
+    do {
+      _foodPosition = Random().nextInt(_noOfRow * _noOfColumn);
+      attempts++;
+    } while (
+      (_borderList.contains(_foodPosition) || _snakePosition.contains(_foodPosition))
+      && attempts < 100
+    );
   }
 
   void _updateSnake() {
