@@ -204,7 +204,7 @@ class MessagePreviewWidget extends StatelessWidget {
         : '${duration.inSeconds}s';
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: theme.colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(8),
@@ -212,19 +212,18 @@ class MessagePreviewWidget extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildWaveAnimation(context),
-          const SizedBox(width: 12),
+          Icon(
+            Icons.mic,
+            color: theme.colorScheme.primary,
+            size: 20,
+          ),
+          const SizedBox(width: 6),
           Text(
             durationText,
-            style: theme.textTheme.titleMedium?.copyWith(
+            style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w500,
             ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            Icons.play_circle_filled,
-            color: theme.colorScheme.primary,
-            size: 32,
           ),
         ],
       ),
