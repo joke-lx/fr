@@ -281,17 +281,21 @@ class _GameHubPageState extends State<_GameHubPage> {
   }
 
   void _onDragStart(DesktopItem item) {
+    print('🎯 [DragStart] item: ${item.id}');
     _draggingItemNotifier.value = item;
     _dragOffsetNotifier.value = Offset.zero;
     setState(() {}); // 拖动开始时需要一次 setState 来显示网格背景和占位符
+    print('✅ [DragStart] draggingItem set to: ${_draggingItemNotifier.value?.id}');
   }
 
   void _onDragUpdate(Offset delta) {
+    print('📍 [DragUpdate] delta: $delta, current offset: ${_dragOffsetNotifier.value}');
     // 直接更新 ValueNotifier，只重建监听的 Widget
     _dragOffsetNotifier.value = _dragOffsetNotifier.value + delta;
   }
 
   void _onDragEnd(Offset position, double cellWidth, double cellHeight, int visibleRowCount) {
+    print('🏁 [DragEnd] position: $position');
     // 计算放置位置
     final col = ((position.dx + cellWidth / 2) / (cellWidth + gridSpacing))
         .floor();
@@ -613,13 +617,18 @@ class _GameHubPageState extends State<_GameHubPage> {
       left: item.position.dx * (cellWidth + gridSpacing),
       top: item.position.dy * (cellHeight + gridSpacing),
       child: GestureDetector(
-        onPanStart: (_) => _onDragStart(item),
+        onPanStart: (details) {
+          print('👆 [GestureDetector] onPanStart triggered for item: ${item.id}');
+          _onDragStart(item);
+        },
         onPanUpdate: (details) {
+          print('👆 [GestureDetector] onPanUpdate triggered, delta: ${details.delta}');
           if (_draggingItemNotifier.value?.id == item.id) {
             _onDragUpdate(details.delta);
           }
         },
-        onPanEnd: (_) {
+        onPanEnd: (details) {
+          print('👆 [GestureDetector] onPanEnd triggered');
           if (_draggingItemNotifier.value?.id == item.id) {
             _onDragEnd(
               Offset(
@@ -633,7 +642,10 @@ class _GameHubPageState extends State<_GameHubPage> {
             );
           }
         },
-        onLongPress: item.isFolder ? () => _openFolderOverlay(item.folder!) : null,
+        onLongPress: item.isFolder ? () {
+          print('👆 [GestureDetector] onLongPress triggered for folder: ${item.folder!.id}');
+          _openFolderOverlay(item.folder!);
+        } : null,
         child: Opacity(
           opacity: isDragging ? 0.5 : 1.0,
           child: item.isFolder
