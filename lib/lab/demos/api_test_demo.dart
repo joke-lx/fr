@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../lab_container.dart';
 import '../../services/api_client.dart';
@@ -43,8 +42,7 @@ class _ApiTestPageState extends State<_ApiTestPage> {
   // APK 更新状态
   String? _apkMetadata;
   String? _apkUpdateTime;
-  bool _isDownloading = false;
-  double _downloadProgress = 0.0;
+  bool _isCheckingUpdate = false;
   String? _downloadStatus;
 
   @override
@@ -174,107 +172,36 @@ class _ApiTestPageState extends State<_ApiTestPage> {
   // 检查APK更新
   Future<void> _checkApkUpdate() async {
     setState(() {
-      _isLoading = true;
+      _isCheckingUpdate = true;
       _downloadStatus = '正在检查更新...';
     });
 
     final metadata = await ApiService.getApkMetadata();
     setState(() {
-      _isLoading = false;
+      _isCheckingUpdate = false;
       if (metadata != null) {
         _apkMetadata = '大小: ${_formatFileSize(metadata.size ?? 0)}';
         _apkUpdateTime = metadata.uploadTime;
-        _downloadStatus = '发现新版本，点击下载';
+        _downloadStatus = '发现新版本 (${metadata.uploadTime?.substring(0, 10) ?? ""})';
       } else {
         _downloadStatus = '未找到APK或服务器错误';
       }
     });
   }
 
-  // 下载APK
-  Future<void> _downloadApk() async {
-    setState(() {
-      _isDownloading = true;
-      _downloadProgress = 0.0;
-      _downloadStatus = '正在下载...';
-    });
-
+  // 用浏览器下载APK
+  Future<void> _downloadApkWithBrowser() async {
+    const url = 'http://139.9.42.203:8988/api/v1/file/fr_latest_apk';
+    final uri = Uri.parse(url);
     try {
-      final response = await ApiService.downloadApk();
-      if (response != null && response.statusCode == 200) {
-        // 获取下载目录
-        final dir = await getExternalStorageDirectory();
-        if (dir == null) {
-          setState(() {
-            _downloadStatus = '无法获取存储目录';
-            _isDownloading = false;
-          });
-          return;
-        }
-
-        // 保存APK文件
-        final file = File('${dir.path}/fr_update.apk');
-        await file.writeAsBytes(response.bodyBytes);
-
-        setState(() {
-          _downloadProgress = 100.0;
-          _downloadStatus = '下载完成: ${file.path}';
-          _isDownloading = false;
-        });
-
-        // 提示用户可以安装
-        _showInstallDialog(file.path);
-      } else {
-        setState(() {
-          _downloadStatus = '下载失败: ${response?.statusCode}';
-          _isDownloading = false;
-        });
-      }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      setState(() {
+        _downloadStatus = '请在浏览器下载面板查看进度';
+      });
     } catch (e) {
       setState(() {
-        _downloadStatus = '下载异常: $e';
-        _isDownloading = false;
+        _downloadStatus = '打开浏览器失败: $e';
       });
-    }
-  }
-
-  // 显示安装确认对话框
-  void _showInstallDialog(String filePath) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('下载完成'),
-        content: Text('APK已下载到:\n$filePath'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _installApk(filePath);
-            },
-            child: const Text('安装'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 安装APK
-  Future<void> _installApk(String filePath) async {
-    try {
-      final uri = Uri.file(filePath);
-      final result = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!result) {
-        setState(() => _downloadStatus = '无法打开安装器');
-      }
-    } catch (e) {
-      setState(() => _downloadStatus = '安装失败: $e');
     }
   }
 
@@ -308,7 +235,7 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
-                  if (_isLoading)
+                  if (_isLoading || _isCheckingUpdate)
                     const SizedBox(
                       width: 20,
                       height: 20,
@@ -571,16 +498,6 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  // 下载进度
-                  if (_isDownloading) ...[
-                    LinearProgressIndicator(
-                      value: _downloadProgress / 100,
-                      backgroundColor: Colors.grey[300],
-                    ),
-                    const SizedBox(height: 8),
-                    Text('${_downloadProgress.toStringAsFixed(1)}%'),
-                    const SizedBox(height: 16),
-                  ],
                   // 状态信息
                   if (_downloadStatus != null) ...[
                     Container(
@@ -588,7 +505,7 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                       decoration: BoxDecoration(
                         color: _downloadStatus!.contains('完成')
                             ? Colors.green[50]
-                            : Colors.orange[50],
+                            : Colors.blue[50],
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -596,7 +513,7 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                         style: TextStyle(
                           color: _downloadStatus!.contains('完成')
                               ? Colors.green[700]
-                              : Colors.orange[700],
+                              : Colors.blue[700],
                         ),
                       ),
                     ),
@@ -607,21 +524,23 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _isLoading || _isDownloading
-                              ? null
-                              : _checkApkUpdate,
-                          icon: const Icon(Icons.refresh),
+                          onPressed: _isCheckingUpdate ? null : _checkApkUpdate,
+                          icon: _isCheckingUpdate
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.refresh),
                           label: const Text('检查更新'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _isLoading || _isDownloading
-                              ? null
-                              : _downloadApk,
+                          onPressed: _downloadApkWithBrowser,
                           icon: const Icon(Icons.download),
-                          label: const Text('下载 APK'),
+                          label: const Text('浏览器下载'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
@@ -656,7 +575,7 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Key: fr_latest_apk (覆盖更新)',
+                          'Key: fr_latest_apk (覆盖更新) | TTL: 30天',
                           style: TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
@@ -679,7 +598,7 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                       Icon(Icons.info_outline, size: 20, color: Colors.blue),
                       SizedBox(width: 8),
                       Text(
-                        '安装说明',
+                        '安装步骤',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -689,10 +608,10 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '1. 下载完成后会提示安装\n'
-                    '2. 如果没有自动安装，可以手动打开下载的APK文件\n'
-                    '3. 安卓可能需要允许安装未知来源应用\n'
-                    '4. 当前版本与APK版本匹配后方可安装',
+                    '1. 点击"浏览器下载"唤起系统浏览器\n'
+                    '2. 在浏览器下载面板查看下载进度\n'
+                    '3. 下载完成后点击APK进行安装\n'
+                    '4. 如遇安装问题，请先卸载旧版本',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
