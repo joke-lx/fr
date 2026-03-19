@@ -87,7 +87,6 @@ class ApiService {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         if (json['data'] != null && json['data']['items'] != null) {
           return gen.DevCtrHelloApiKvV1KvItem.listFromJson(json['data']['items'])
-              .map((e) => e as gen.DevCtrHelloApiKvV1KvItem)
               .toList();
         }
       }
@@ -149,6 +148,71 @@ class ApiService {
       return false;
     } catch (e) {
       return false;
+    }
+  }
+
+  // 通过Key上传文件
+  static Future<gen.DevCtrHelloApiFileV1FileUploadRes?> uploadFileByKey(
+    File file,
+    String key, {
+    String? ttl,
+  }) async {
+    try {
+      final fileName = file.path.split('/').last;
+      final bytes = await file.readAsBytes();
+
+      final multipartFile = MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+      );
+
+      // 使用 key 作为路径参数上传
+      final uri = Uri.parse('$baseUrl/api/v1/upload/$key');
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(multipartFile);
+      if (ttl != null) {
+        request.fields['ttl'] = ttl;
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        if (json['data'] != null) {
+          return gen.DevCtrHelloApiFileV1FileUploadRes.fromJson(json['data']);
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 获取APK元数据（用于检查更新）- 使用key作为id
+  static Future<gen.DevCtrHelloApiFileV1FileMetadataRes?> getApkMetadata() async {
+    try {
+      final response = await fileApi.apiV1FileIdMetadataGetWithHttpInfo(id: 'fr_latest_apk');
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        if (json['data'] != null) {
+          return gen.DevCtrHelloApiFileV1FileMetadataRes.fromJson(json['data']);
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 下载APK（通过key）
+  static Future<http.Response?> downloadApk() async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/v1/file/fr_latest_apk');
+      return await http.get(uri);
+    } catch (e) {
+      return null;
     }
   }
 
