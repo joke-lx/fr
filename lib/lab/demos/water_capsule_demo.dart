@@ -332,20 +332,34 @@ class _WaveCapsuleState extends State<WaveCapsule> {
     final percentage = widget.percentageValue;
     final waveValue = widget.waveAnimation.value;
 
-    for (int i = -2; i <= 62; i++) {
-      _waveList1.add(Offset(
-        i.toDouble(),
-        math.sin((waveValue * 360 - i) * math.pi / 90) * 4 +
-            ((100 - percentage) * 1.6),
-      ));
+    // 波浪参数随水位变化
+    // 水位越高，波浪频率越低(波长越长)，波浪深度越浅
+    // 水位越低，波浪频率越高(波长越短)，波浪深度越深
+    final waveDepth = 3 + (100 - percentage) / 100 * 7; // 3-10之间变化
+    final waveFrequency = 0.6 + (100 - percentage) / 100 * 0.8; // 0.6-1.4之间变化
+
+    // 容器宽度60,高度160
+    final width = 60.0;
+    final height = 160.0;
+
+    // 计算水位高度（从底部算起）
+    final waterHeight = height * (percentage / 100);
+
+    // 生成波浪点
+    for (int i = -2; i <= width.toInt() + 2; i++) {
+      final x = i.toDouble();
+      final normalizedX = x / width;
+      final y = (height - waterHeight) +
+          math.sin((waveValue * 360 - i) * waveFrequency * math.pi / 90) * waveDepth;
+      _waveList1.add(Offset(x, y.clamp(0, height)));
     }
 
-    for (int i = -2; i <= 62; i++) {
-      _waveList2.add(Offset(
-        i.toDouble(),
-        math.sin((waveValue * 360 - i + 30) * math.pi / 90) * 4 +
-            ((100 - percentage) * 1.6),
-      ));
+    for (int i = -2; i <= width.toInt() + 2; i++) {
+      final x = i.toDouble();
+      final normalizedX = x / width;
+      final y = (height - waterHeight) +
+          math.sin((waveValue * 360 - i + 30) * waveFrequency * math.pi / 90) * waveDepth;
+      _waveList2.add(Offset(x, y.clamp(0, height)));
     }
   }
 
