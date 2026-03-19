@@ -623,24 +623,20 @@ class _GameHubPageState extends State<_GameHubPage> {
         },
         onPanUpdate: (details) {
           print('👆 [GestureDetector] onPanUpdate triggered, delta: ${details.delta}');
-          if (_draggingItemNotifier.value?.id == item.id) {
-            _onDragUpdate(details.delta);
-          }
+          _onDragUpdate(details.delta);
         },
         onPanEnd: (details) {
           print('👆 [GestureDetector] onPanEnd triggered');
-          if (_draggingItemNotifier.value?.id == item.id) {
-            _onDragEnd(
-              Offset(
-                item.position.dx * (cellWidth + gridSpacing),
-                item.position.dy * (cellHeight + gridSpacing),
-              ) +
-                  _dragOffsetNotifier.value,
-              cellWidth,
-              cellHeight,
-              9,
-            );
-          }
+          _onDragEnd(
+            Offset(
+              item.position.dx * (cellWidth + gridSpacing),
+              item.position.dy * (cellHeight + gridSpacing),
+            ) +
+                _dragOffsetNotifier.value,
+            cellWidth,
+            cellHeight,
+            9,
+          );
         },
         onLongPress: item.isFolder ? () {
           print('👆 [GestureDetector] onLongPress triggered for folder: ${item.folder!.id}');
