@@ -298,10 +298,8 @@ class _GameHubPageState extends State<_GameHubPage> {
   }
 
   void _onDragUpdate(Offset delta) {
-    // 直接更新 dragOffset，不触发 setState
+    // 直接更新 ValueNotifier，只重建监听的 Widget
     _dragOffsetNotifier.value = _dragOffsetNotifier.value + delta;
-    // 只重建拖动项和占位符，使用 markNeedsPaint 而非 setState
-    setState(() {});
   }
 
   void _onDragEnd(Offset position, double cellWidth, double cellHeight, int visibleRowCount) {
@@ -662,13 +660,17 @@ class _GameHubPageState extends State<_GameHubPage> {
   Widget _buildDraggingItem(double cellWidth, double cellHeight) {
     if (draggingItem == null) return const SizedBox();
 
-    return Positioned(
-      left:
-          (draggingItem!.position.dx * (cellWidth + gridSpacing)) +
-          _dragOffsetNotifier.value.dx,
-      top:
-          (draggingItem!.position.dy * (cellHeight + gridSpacing)) +
-          _dragOffsetNotifier.value.dy,
+    return ValueListenableBuilder<Offset>(
+      valueListenable: _dragOffsetNotifier,
+      builder: (context, dragOffset, child) {
+        return Positioned(
+          left: (draggingItem!.position.dx * (cellWidth + gridSpacing)) +
+              dragOffset.dx,
+          top: (draggingItem!.position.dy * (cellHeight + gridSpacing)) +
+              dragOffset.dy,
+          child: child!,
+        );
+      },
       child: IgnorePointer(
         child: Opacity(
           opacity: 0.8,
