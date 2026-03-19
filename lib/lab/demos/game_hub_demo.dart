@@ -293,13 +293,13 @@ class _GameHubPageState extends State<_GameHubPage> {
   void _onDragStart(DesktopItem item) {
     setState(() {
       draggingItem = item;
-      dragOffset = Offset.zero; // 立即初始化，使占位符立即显示
+      _dragOffsetNotifier.value = Offset.zero; // 立即初始化，使占位符立即显示
     });
   }
 
   void _onDragUpdate(Offset delta) {
     // 直接更新 dragOffset，不触发 setState
-    dragOffset = (dragOffset ?? Offset.zero) + delta;
+    _dragOffsetNotifier.value = _dragOffsetNotifier.value + delta;
     // 只重建拖动项和占位符，使用 markNeedsPaint 而非 setState
     setState(() {});
   }
@@ -343,7 +343,7 @@ class _GameHubPageState extends State<_GameHubPage> {
           );
         }
         draggingItem = null;
-        dragOffset = null;
+        _dragOffsetNotifier.value = Offset.zero;
       });
     }
   }
@@ -385,7 +385,7 @@ class _GameHubPageState extends State<_GameHubPage> {
       );
 
       draggingItem = null;
-      dragOffset = null;
+      _dragOffsetNotifier.value = Offset.zero;
     });
   }
 
@@ -489,7 +489,7 @@ class _GameHubPageState extends State<_GameHubPage> {
                           (item) => _buildDesktopItem(item, cellWidth, cellHeight),
                         ),
                     // 占位符 - 拖动时显示在原位置
-                    if (draggingItem != null && dragOffset != null)
+                    if (draggingItem != null)
                       _buildPlaceholder(draggingItem!, cellWidth, cellHeight),
                     // 超出可视区域的项目指示器
                     if (hasOverflowItems)
@@ -499,7 +499,7 @@ class _GameHubPageState extends State<_GameHubPage> {
               ),
             ),
             // 拖动项 - 在 Stack 顶部渲染，不受高度限制
-            if (draggingItem != null && dragOffset != null)
+            if (draggingItem != null)
               _buildDraggingItem(cellWidth, cellHeight),
           ],
         );
@@ -641,7 +641,7 @@ class _GameHubPageState extends State<_GameHubPage> {
                 item.position.dx * (cellWidth + gridSpacing),
                 item.position.dy * (cellHeight + gridSpacing),
               ) +
-                  (dragOffset ?? Offset.zero),
+                  _dragOffsetNotifier.value,
               cellWidth,
               cellHeight,
               9,
@@ -665,10 +665,10 @@ class _GameHubPageState extends State<_GameHubPage> {
     return Positioned(
       left:
           (draggingItem!.position.dx * (cellWidth + gridSpacing)) +
-          (dragOffset?.dx ?? 0),
+          _dragOffsetNotifier.value.dx,
       top:
           (draggingItem!.position.dy * (cellHeight + gridSpacing)) +
-          (dragOffset?.dy ?? 0),
+          _dragOffsetNotifier.value.dy,
       child: IgnorePointer(
         child: Opacity(
           opacity: 0.8,
