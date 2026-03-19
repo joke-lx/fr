@@ -197,10 +197,21 @@ class _GameHubPageState extends State<_GameHubPage> {
   DesktopItem? draggingItem;
   Offset? dragOffset;
 
+  // 预计算的可见项目，避免每帧重新过滤
+  late List<DesktopItem> _visibleItems;
+
   @override
   void initState() {
     super.initState();
     desktopItems = createDefaultDesktop();
+    _visibleItems = [];
+    _updateVisibleItems(9);
+  }
+
+  void _updateVisibleItems(int visibleRowCount) {
+    _visibleItems = desktopItems
+        .where((item) => item.position.dy.toInt() < visibleRowCount)
+        .toList();
   }
 
   void _openFolderOverlay(GameFolder folder) {
@@ -279,9 +290,10 @@ class _GameHubPageState extends State<_GameHubPage> {
   }
 
   void _onDragUpdate(Offset delta) {
-    setState(() {
-      dragOffset = (dragOffset ?? Offset.zero) + delta;
-    });
+    // 直接更新 dragOffset，不触发 setState
+    dragOffset = (dragOffset ?? Offset.zero) + delta;
+    // 只重建拖动项和占位符，使用 markNeedsPaint 而非 setState
+    setState(() {});
   }
 
   void _onDragEnd(Offset position, double cellWidth, double cellHeight, int visibleRowCount) {
