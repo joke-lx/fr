@@ -315,39 +315,42 @@ class WaveCapsule extends StatelessWidget {
           ),
         ],
       ),
-      child: AnimatedBuilder(
-        animation: waveAnimation,
-        builder: (context, child) {
-          return CustomPaint(
-            painter: WavePainter(
-              waveValue: waveAnimation.value,
-              percentage: percentageValue,
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    percentageValue.round().toString(),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 24,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const Text(
-                    '%',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(80),
+        child: AnimatedBuilder(
+          animation: waveAnimation,
+          builder: (context, child) {
+            return CustomPaint(
+              painter: WavePainter(
+                waveValue: waveAnimation.value,
+                percentage: percentageValue,
               ),
-            ),
-          );
-        },
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      percentageValue.round().toString(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Text(
+                      '%',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
