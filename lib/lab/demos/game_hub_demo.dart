@@ -194,32 +194,22 @@ class _GameHubPage extends StatefulWidget {
 
 class _GameHubPageState extends State<_GameHubPage> {
   late List<DesktopItem> desktopItems;
-  DesktopItem? draggingItem;
 
-  // 使用 ValueNotifier 避免每帧 setState
+  // 使用 ValueNotifier 避免拖动时触发 setState
+  final ValueNotifier<DesktopItem?> _draggingItemNotifier = ValueNotifier(null);
   final ValueNotifier<Offset> _dragOffsetNotifier = ValueNotifier(Offset.zero);
-
-  // 预计算的可见项目，避免每帧重新过滤
-  late List<DesktopItem> _visibleItems;
 
   @override
   void initState() {
     super.initState();
     desktopItems = createDefaultDesktop();
-    _visibleItems = [];
-    _updateVisibleItems(9);
   }
 
   @override
   void dispose() {
+    _draggingItemNotifier.dispose();
     _dragOffsetNotifier.dispose();
     super.dispose();
-  }
-
-  void _updateVisibleItems(int visibleRowCount) {
-    _visibleItems = desktopItems
-        .where((item) => item.position.dy.toInt() < visibleRowCount)
-        .toList();
   }
 
   void _openFolderOverlay(GameFolder folder) {
@@ -291,10 +281,9 @@ class _GameHubPageState extends State<_GameHubPage> {
   }
 
   void _onDragStart(DesktopItem item) {
-    setState(() {
-      draggingItem = item;
-      _dragOffsetNotifier.value = Offset.zero; // 立即初始化，使占位符立即显示
-    });
+    _draggingItemNotifier.value = item;
+    _dragOffsetNotifier.value = Offset.zero;
+    setState(() {}); // 拖动开始时需要一次 setState 来显示网格背景和占位符
   }
 
   void _onDragUpdate(Offset delta) {
@@ -316,7 +305,7 @@ class _GameHubPageState extends State<_GameHubPage> {
     // 检查是否与现有项目重叠
     DesktopItem? targetItem;
     for (var item in desktopItems) {
-      if (item.id != draggingItem?.id) {
+      if (item.id != _draggingItemNotifier.value?.id) {
         final itemCol = item.position.dx.toInt();
         final itemRow = item.position.dy.toInt();
         if (itemCol == clampedCol && itemRow == clampedRow) {
@@ -326,65 +315,63 @@ class _GameHubPageState extends State<_GameHubPage> {
       }
     }
 
-    if (targetItem != null && draggingItem != null) {
+    if (targetItem != null && _draggingItemNotifier.value != null) {
       // 合并到文件夹
-      _mergeToFolder(draggingItem!, targetItem);
+      _mergeToFolder(_draggingItemNotifier.value!, targetItem);
     } else {
       // 更新位置
-      setState(() {
-        final index = desktopItems.indexWhere(
-          (item) => item.id == draggingItem?.id,
+      final index = desktopItems.indexWhere(
+        (item) => item.id == _draggingItemNotifier.value?.id,
+      );
+      if (index != -1) {
+        desktopItems[index] = desktopItems[index].copyWith(
+          position: Offset(clampedCol.toDouble(), clampedRow.toDouble()),
         );
-        if (index != -1) {
-          desktopItems[index] = desktopItems[index].copyWith(
-            position: Offset(clampedCol.toDouble(), clampedRow.toDouble()),
-          );
-        }
-        draggingItem = null;
-        _dragOffsetNotifier.value = Offset.zero;
-      });
+      }
+      _draggingItemNotifier.value = null;
+      _dragOffsetNotifier.value = Offset.zero;
+      setState(() {}); // 只在最后调用一次 setState 更新桌面项位置
     }
   }
 
   void _mergeToFolder(DesktopItem source, DesktopItem target) {
-    setState(() {
-      List<GameItem> folderGames = [];
+    List<GameItem> folderGames = [];
 
-      if (source.game != null) folderGames.add(source.game!);
-      if (target.game != null) folderGames.add(target.game!);
+    if (source.game != null) folderGames.add(source.game!);
+    if (target.game != null) folderGames.add(target.game!);
 
-      // 如果目标是文件夹，添加其内容
-      if (target.folder != null) {
-        folderGames.addAll(target.folder!.games);
-      }
+    // 如果目标是文件夹，添加其内容
+    if (target.folder != null) {
+      folderGames.addAll(target.folder!.games);
+    }
 
-      // 如果源是文件夹，添加其内容
-      if (source.folder != null) {
-        folderGames.addAll(source.folder!.games);
-      }
+    // 如果源是文件夹，添加其内容
+    if (source.folder != null) {
+      folderGames.addAll(source.folder!.games);
+    }
 
-      // 创建新文件夹
-      final newFolder = GameFolder(
-        id: 'folder_${DateTime.now().millisecondsSinceEpoch}',
-        games: folderGames,
-        color: const Color(0xFF8E8E93),
-      );
+    // 创建新文件夹
+    final newFolder = GameFolder(
+      id: 'folder_${DateTime.now().millisecondsSinceEpoch}',
+      games: folderGames,
+      color: const Color(0xFF8E8E93),
+    );
 
-      // 移除源项目和目标项目，添加新文件夹
-      desktopItems.removeWhere(
-        (item) => item.id == source.id || item.id == target.id,
-      );
-      desktopItems.add(
-        DesktopItem(
-          id: newFolder.id,
-          folder: newFolder,
-          position: target.position,
-        ),
-      );
+    // 移除源项目和目标项目，添加新文件夹
+    desktopItems.removeWhere(
+      (item) => item.id == source.id || item.id == target.id,
+    );
+    desktopItems.add(
+      DesktopItem(
+        id: newFolder.id,
+        folder: newFolder,
+        position: target.position,
+      ),
+    );
 
-      draggingItem = null;
-      _dragOffsetNotifier.value = Offset.zero;
-    });
+    _draggingItemNotifier.value = null;
+    _dragOffsetNotifier.value = Offset.zero;
+    setState(() {}); // 只在最后调用一次 setState 更新桌面项
   }
 
   @override
@@ -471,7 +458,7 @@ class _GameHubPageState extends State<_GameHubPage> {
                 child: Stack(
                   children: [
                     // 网格背景 - 只在拖动时显示
-                    if (draggingItem != null)
+                    if (_draggingItemNotifier.value != null)
                       ..._buildGridBackground(
                         cellWidth,
                         cellHeight,
@@ -482,13 +469,13 @@ class _GameHubPageState extends State<_GameHubPage> {
                     ...desktopItems
                         .where((item) =>
                             item.position.dy.toInt() < visibleRowCount &&
-                            item.id != draggingItem?.id)
+                            item.id != _draggingItemNotifier.value?.id)
                         .map(
                           (item) => _buildDesktopItem(item, cellWidth, cellHeight),
                         ),
                     // 占位符 - 拖动时显示在原位置
-                    if (draggingItem != null)
-                      _buildPlaceholder(draggingItem!, cellWidth, cellHeight),
+                    if (_draggingItemNotifier.value != null)
+                      _buildPlaceholder(_draggingItemNotifier.value!, cellWidth, cellHeight),
                     // 超出可视区域的项目指示器
                     if (hasOverflowItems)
                       _buildOverflowIndicator(cellWidth, cellHeight, colCount),
@@ -497,7 +484,7 @@ class _GameHubPageState extends State<_GameHubPage> {
               ),
             ),
             // 拖动项 - 在 Stack 顶部渲染，不受高度限制
-            if (draggingItem != null)
+            if (_draggingItemNotifier.value != null)
               _buildDraggingItem(cellWidth, cellHeight),
           ],
         );
@@ -620,7 +607,7 @@ class _GameHubPageState extends State<_GameHubPage> {
     double cellWidth,
     double cellHeight,
   ) {
-    final isDragging = draggingItem?.id == item.id;
+    final isDragging = _draggingItemNotifier.value?.id == item.id;
 
     return Positioned(
       left: item.position.dx * (cellWidth + gridSpacing),
@@ -628,12 +615,12 @@ class _GameHubPageState extends State<_GameHubPage> {
       child: GestureDetector(
         onPanStart: (_) => _onDragStart(item),
         onPanUpdate: (details) {
-          if (draggingItem?.id == item.id) {
+          if (_draggingItemNotifier.value?.id == item.id) {
             _onDragUpdate(details.delta);
           }
         },
         onPanEnd: (_) {
-          if (draggingItem?.id == item.id) {
+          if (_draggingItemNotifier.value?.id == item.id) {
             _onDragEnd(
               Offset(
                 item.position.dx * (cellWidth + gridSpacing),
@@ -658,25 +645,31 @@ class _GameHubPageState extends State<_GameHubPage> {
   }
 
   Widget _buildDraggingItem(double cellWidth, double cellHeight) {
-    if (draggingItem == null) return const SizedBox();
+    if (_draggingItemNotifier.value == null) return const SizedBox();
 
-    return ValueListenableBuilder<Offset>(
-      valueListenable: _dragOffsetNotifier,
-      builder: (context, dragOffset, child) {
-        return Positioned(
-          left: (draggingItem!.position.dx * (cellWidth + gridSpacing)) +
-              dragOffset.dx,
-          top: (draggingItem!.position.dy * (cellHeight + gridSpacing)) +
-              dragOffset.dy,
-          child: child!,
-        );
-      },
-      child: IgnorePointer(
-        child: Opacity(
-          opacity: 0.8,
-          child: draggingItem!.isFolder
-              ? _buildFolderIcon(draggingItem!.folder!, cellWidth, cellHeight)
-              : _buildGameIcon(draggingItem!.game!, cellWidth, cellHeight),
+    final baseLeft = _draggingItemNotifier.value!.position.dx * (cellWidth + gridSpacing);
+    final baseTop = _draggingItemNotifier.value!.position.dy * (cellHeight + gridSpacing);
+
+    return Positioned(
+      left: baseLeft,
+      top: baseTop,
+      child: ValueListenableBuilder<Offset>(
+        valueListenable: _dragOffsetNotifier,
+        builder: (context, dragOffset, child) {
+          return Transform.translate(
+            offset: dragOffset,
+            child: child!,
+          );
+        },
+        child: RepaintBoundary(
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: 0.8,
+              child: _draggingItemNotifier.value!.isFolder
+                  ? _buildFolderIcon(_draggingItemNotifier.value!.folder!, cellWidth, cellHeight)
+                  : _buildGameIcon(_draggingItemNotifier.value!.game!, cellWidth, cellHeight),
+            ),
+          ),
         ),
       ),
     );
