@@ -633,7 +633,7 @@ class _GameHubPageState extends State<_GameHubPage> {
             );
           }
         },
-        onTap: item.isFolder ? () => _openFolderOverlay(item.folder!) : null,
+        onLongPress: item.isFolder ? () => _openFolderOverlay(item.folder!) : null,
         child: Opacity(
           opacity: isDragging ? 0.5 : 1.0,
           child: item.isFolder
