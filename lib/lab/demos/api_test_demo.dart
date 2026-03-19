@@ -44,6 +44,8 @@ class _ApiTestPageState extends State<_ApiTestPage> {
   String? _apkUpdateTime;
   bool _isCheckingUpdate = false;
   String? _downloadStatus;
+  double _downloadProgress = 0.0; // 下载进度 0.0-1.0
+  bool _isDownloading = false;
 
   @override
   void initState() {
@@ -202,6 +204,108 @@ class _ApiTestPageState extends State<_ApiTestPage> {
       setState(() {
         _downloadStatus = '打开浏览器失败: $e';
       });
+    }
+  }
+
+  // 内部下载APK（支持断点续传）
+  Future<void> _downloadApkInternal() async {
+    if (_isDownloading) return;
+
+    setState(() {
+      _isDownloading = true;
+      _downloadProgress = 0.0;
+      _downloadStatus = '开始下载...';
+    });
+
+    try {
+      final filePath = await ApiService.downloadApkToLocal(
+        onProgress: (received, total) {
+          if (mounted && total > 0) {
+            setState(() {
+              _downloadProgress = received / total;
+              _downloadStatus = '下载中: ${(_downloadProgress * 100).toStringAsFixed(1)}%';
+            });
+          }
+        },
+      );
+
+      if (filePath != null && mounted) {
+        setState(() {
+          _downloadStatus = '下载完成: $filePath';
+          _isDownloading = false;
+        });
+        // 提示用户安装
+        if (mounted) {
+          _showInstallDialog(filePath);
+        }
+      } else if (mounted) {
+        setState(() {
+          _downloadStatus = '下载失败，回退到浏览器下载';
+          _isDownloading = false;
+        });
+        // 回退到浏览器下载
+        await _downloadApkWithBrowser();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _downloadStatus = '下载出错: $e，回退到浏览器下载';
+          _isDownloading = false;
+        });
+        // 回退到浏览器下载
+        await _downloadApkWithBrowser();
+      }
+    }
+  }
+
+  // 显示安装对话框
+  void _showInstallDialog(String filePath) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('下载完成'),
+        content: Text('APK 已下载到:\n$filePath\n\n是否立即安装？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _installApk(filePath);
+            },
+            child: const Text('安装'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 安装APK
+  Future<void> _installApk(String filePath) async {
+    try {
+      // 使用系统安装器安装
+      final result = await Process.run('adb', ['install', '-r', filePath]);
+      if (result.exitCode == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('安装成功！')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('安装失败: ${result.stderr}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('无法自动安装，请手动在手机上安装 APK 文件')),
+        );
+      }
     }
   }
 
@@ -547,8 +651,34 @@ class _ApiTestPageState extends State<_ApiTestPage> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isDownloading ? null : _downloadApkInternal,
+                          icon: _isDownloading
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    value: _downloadProgress > 0 ? _downloadProgress : null,
+                                  ),
+                                )
+                              : const Icon(Icons.download_for_offline),
+                          label: Text(_isDownloading ? '下载中...' : '内部下载'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
+                  // 显示下载进度条
+                  if (_isDownloading) ...[
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(value: _downloadProgress),
+                  ],
                   const SizedBox(height: 12),
                   // 下载地址信息
                   Container(
