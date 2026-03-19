@@ -289,7 +289,7 @@ class _GameHubPageState extends State<_GameHubPage> {
     print('🎯 [DragStart] item: ${item.id}');
     _draggingItemNotifier.value = item;
     _dragOffsetNotifier.value = Offset.zero;
-    setState(() {}); // 拖动开始时需要一次 setState 来显示网格背景和占位符
+    // 不需要 setState，ValueListenableBuilder 会自动响应
     print('✅ [DragStart] draggingItem set to: ${_draggingItemNotifier.value?.id}');
   }
 
@@ -464,37 +464,47 @@ class _GameHubPageState extends State<_GameHubPage> {
               child: SizedBox(
                 width: colCount * cellWidth + totalHorizontalSpacing,
                 height: visibleGridHeight,
-                child: Stack(
-                  children: [
-                    // 网格背景 - 只在拖动时显示
-                    if (_draggingItemNotifier.value != null)
-                      ..._buildGridBackground(
-                        cellWidth,
-                        cellHeight,
-                        visibleRowCount,
-                        colCount,
-                      ),
-                    // 桌面项目 - 只显示可视区域内的（拖动中的项目隐藏原位置）
-                    ...desktopItems
-                        .where((item) =>
-                            item.position.dy.toInt() < visibleRowCount &&
-                            item.id != _draggingItemNotifier.value?.id)
-                        .map(
-                          (item) => _buildDesktopItem(item, cellWidth, cellHeight),
-                        ),
-                    // 占位符 - 拖动时显示在原位置
-                    if (_draggingItemNotifier.value != null)
-                      _buildPlaceholder(_draggingItemNotifier.value!, cellWidth, cellHeight),
-                    // 超出可视区域的项目指示器
-                    if (hasOverflowItems)
-                      _buildOverflowIndicator(cellWidth, cellHeight, colCount),
-                  ],
+                child: ValueListenableBuilder<DesktopItem?>(
+                  valueListenable: _draggingItemNotifier,
+                  builder: (context, draggingItem, child) {
+                    return Stack(
+                      children: [
+                        // 网格背景 - 只在拖动时显示
+                        if (draggingItem != null)
+                          ..._buildGridBackground(
+                            cellWidth,
+                            cellHeight,
+                            visibleRowCount,
+                            colCount,
+                          ),
+                        // 桌面项目 - 只显示可视区域内的（拖动中的项目隐藏原位置）
+                        ...desktopItems
+                            .where((item) =>
+                                item.position.dy.toInt() < visibleRowCount &&
+                                item.id != draggingItem?.id)
+                            .map(
+                              (item) => _buildDesktopItem(item, cellWidth, cellHeight),
+                            ),
+                        // 占位符 - 拖动时显示在原位置
+                        if (draggingItem != null)
+                          _buildPlaceholder(draggingItem, cellWidth, cellHeight),
+                        // 超出可视区域的项目指示器
+                        if (hasOverflowItems)
+                          _buildOverflowIndicator(cellWidth, cellHeight, colCount),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
             // 拖动项 - 在 Stack 顶部渲染，不受高度限制
-            if (_draggingItemNotifier.value != null)
-              _buildDraggingItem(cellWidth, cellHeight),
+            ValueListenableBuilder<DesktopItem?>(
+              valueListenable: _draggingItemNotifier,
+              builder: (context, draggingItem, child) {
+                if (draggingItem == null) return const SizedBox();
+                return _buildDraggingItem(cellWidth, cellHeight);
+              },
+            ),
           ],
         );
       },
