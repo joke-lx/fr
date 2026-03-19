@@ -289,83 +289,17 @@ class _WaterCapsulePageState extends State<_WaterCapsulePage>
 }
 
 /// 波浪胶囊组件
-class WaveCapsule extends StatefulWidget {
+class WaveCapsule extends StatelessWidget {
   final double percentageValue;
   final Animation<double> waveAnimation;
+
+  static const Color _nearlyDarkBlue = Color(0xFF2633C5);
 
   const WaveCapsule({
     super.key,
     required this.percentageValue,
     required this.waveAnimation,
   });
-
-  @override
-  State<WaveCapsule> createState() => _WaveCapsuleState();
-}
-
-class _WaveCapsuleState extends State<WaveCapsule> {
-  static const Color _nearlyDarkBlue = Color(0xFF2633C5);
-
-  List<Offset> _waveList1 = [];
-  List<Offset> _waveList2 = [];
-
-  @override
-  void initState() {
-    super.initState();
-    widget.waveAnimation.addListener(_updateWaves);
-    _updateWaves();
-  }
-
-  @override
-  void didUpdateWidget(WaveCapsule oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.waveAnimation != widget.waveAnimation) {
-      oldWidget.waveAnimation.removeListener(_updateWaves);
-      widget.waveAnimation.addListener(_updateWaves);
-      _updateWaves();
-    }
-  }
-
-  void _updateWaves() {
-    _waveList1 = [];
-    _waveList2 = [];
-    final percentage = widget.percentageValue;
-    final waveValue = widget.waveAnimation.value;
-
-    // 波浪参数随水位变化 - 保持稳定速度
-    final waveDepth = 3 + (100 - percentage) / 100 * 4; // 3-7之间变化
-    final waveFrequency = 0.3; // 固定频率，保持稳定速度
-
-    // 容器宽度60,高度160
-    final width = 60.0;
-    final height = 160.0;
-
-    // 计算水位高度（从底部算起）
-    final waterHeight = height * (percentage / 100);
-
-    // 生成波浪点
-    for (int i = -2; i <= width.toInt() + 2; i++) {
-      final x = i.toDouble();
-      final normalizedX = x / width;
-      final y = (height - waterHeight) +
-          math.sin((waveValue * 360 - i) * waveFrequency * math.pi / 90) * waveDepth;
-      _waveList1.add(Offset(x, y.clamp(0, height)));
-    }
-
-    for (int i = -2; i <= width.toInt() + 2; i++) {
-      final x = i.toDouble();
-      final normalizedX = x / width;
-      final y = (height - waterHeight) +
-          math.sin((waveValue * 360 - i + 30) * waveFrequency * math.pi / 90) * waveDepth;
-      _waveList2.add(Offset(x, y.clamp(0, height)));
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.waveAnimation.removeListener(_updateWaves);
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -382,72 +316,36 @@ class _WaveCapsuleState extends State<WaveCapsule> {
         ],
       ),
       child: AnimatedBuilder(
-        animation: widget.waveAnimation,
+        animation: waveAnimation,
         builder: (context, child) {
-          _updateWaves();
-          return Stack(
-            children: [
-              // 第一层波浪（浅色）
-              ClipPath(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _nearlyDarkBlue.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(80),
-                    gradient: LinearGradient(
-                      colors: [
-                        _nearlyDarkBlue.withOpacity(0.2),
-                        _nearlyDarkBlue.withOpacity(0.5),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+          return CustomPaint(
+            painter: WavePainter(
+              waveValue: waveAnimation.value,
+              percentage: percentageValue,
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    percentageValue.round().toString(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 24,
+                      color: Colors.white,
                     ),
                   ),
-                ),
-                clipper: WaveClipper(_waveList1),
-              ),
-              // 第二层波浪（深色）
-              ClipPath(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _nearlyDarkBlue,
-                    gradient: LinearGradient(
-                      colors: [
-                        _nearlyDarkBlue.withOpacity(0.4),
-                        _nearlyDarkBlue,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                  const Text(
+                    '%',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                      color: Colors.white,
                     ),
-                    borderRadius: BorderRadius.circular(80),
                   ),
-                ),
-                clipper: WaveClipper(_waveList2),
+                ],
               ),
-              // 百分比文字
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      widget.percentageValue.round().toString(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 24,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Text(
-                      '%',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           );
         },
       ),
@@ -455,24 +353,65 @@ class _WaveCapsuleState extends State<WaveCapsule> {
   }
 }
 
-/// 波浪裁剪器
-class WaveClipper extends CustomClipper<Path> {
-  final List<Offset> waveList;
+/// 波浪绘制器
+class WavePainter extends CustomPainter {
+  final double waveValue;
+  final double percentage;
 
-  WaveClipper(this.waveList);
+  static const Color _nearlyDarkBlue = Color(0xFF2633C5);
+
+  WavePainter({
+    required this.waveValue,
+    required this.percentage,
+  });
 
   @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.addPolygon(waveList, false);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-    return path;
+  void paint(Canvas canvas, Size size) {
+    final width = size.width;
+    final height = size.height;
+
+    // 计算水位高度（从底部算起）
+    final waterHeight = height * (percentage / 100);
+    final waterY = height - waterHeight;
+
+    // 波浪参数
+    final waveDepth = 3 + (100 - percentage) / 100 * 4; // 3-7之间变化
+
+    // 绘制第一层波浪（浅色）
+    final path1 = Path();
+    path1.moveTo(0, height);
+    for (double x = 0; x <= width; x += 1) {
+      final y = waterY + math.sin((waveValue * 360 - x * 5) * math.pi / 180) * waveDepth;
+      path1.lineTo(x, y.clamp(0, height));
+    }
+    path1.lineTo(width, height);
+    path1.close();
+
+    final paint1 = Paint()
+      ..color = _nearlyDarkBlue.withOpacity(0.5)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path1, paint1);
+
+    // 绘制第二层波浪（深色）
+    final path2 = Path();
+    path2.moveTo(0, height);
+    for (double x = 0; x <= width; x += 1) {
+      final y = waterY + math.sin((waveValue * 360 - x * 5 + 30) * math.pi / 180) * waveDepth;
+      path2.lineTo(x, y.clamp(0, height));
+    }
+    path2.lineTo(width, height);
+    path2.close();
+
+    final paint2 = Paint()
+      ..color = _nearlyDarkBlue
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path2, paint2);
   }
 
   @override
-  bool shouldReclip(WaveClipper oldClipper) => true;
+  bool shouldRepaint(WavePainter oldDelegate) {
+    return oldDelegate.waveValue != waveValue || oldDelegate.percentage != percentage;
+  }
 }
 
 void registerWaterCapsuleDemo() {
