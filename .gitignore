@@ -12,6 +12,10 @@
 .swiftpm/
 migrate_working_dir/
 
+# Generated API (use lib/generated instead)
+generated_api/
+api_spec.json
+
 # IntelliJ related
 *.iml
 *.ipr

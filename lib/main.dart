@@ -17,6 +17,15 @@ import 'lab/demos/drag_reorder_demo.dart';
 import 'lab/demos/web_preview_demo.dart';
 import 'lab/demos/storage_analyze_demo.dart';
 import 'lab/demos/game_hub_demo.dart';
+import 'lab/demos/hexagon_panel_demo.dart';
+import 'lab/demos/ripple_effect_demo.dart';
+import 'lab/demos/typewriter_demo.dart';
+import 'lab/demos/snake_game_demo.dart';
+import 'lab/demos/music_player_ui_demo.dart';
+import 'lab/demos/api_test_demo.dart';
+import 'lab/demos/calendar_demo.dart';
+import 'lab/demos/my_diary_header_demo.dart';
+import 'lab/demos/water_capsule_demo.dart';
 import 'lab/providers/lab_note_provider.dart';
 import 'lab/providers/lab_clock_provider.dart';
 
@@ -32,6 +41,15 @@ void main() {
   registerWebPreviewDemo();
   registerStorageAnalyzeDemo();
   registerGameHubDemo();
+  registerHexagonPanelDemo();
+  registerRippleEffectDemo();
+  registerTypewriterDemo();
+  registerSnakeGameDemo();
+  registerMusicPlayerUIDemo();
+  registerApiTestDemo();
+  registerCalendarDemo();
+  registerMyDiaryHeaderDemo();
+  registerWaterCapsuleDemo();
   runApp(const MyApp());
 }
 
