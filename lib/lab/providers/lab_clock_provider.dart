@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../home_widget/clock_widget_data.dart';
 import '../../home_widget/clock_widget_service.dart';
 import '../models/lab_clock.dart';
@@ -16,6 +17,7 @@ class LabClockProvider with ChangeNotifier, WidgetsBindingObserver {
   static const String _storageKey = 'lab_clocks';
   static const String _recordsKey = 'lab_clock_records';
   Timer? _timer;
+  final AudioPlayer _audioPlayer = AudioPlayer(); // 音频播放器
 
   List<LabClock> get clocks => _clocks;
   List<LabClockRecord> get records => _records;
@@ -91,12 +93,36 @@ class LabClockProvider with ChangeNotifier, WidgetsBindingObserver {
     });
   }
 
-  // 震动3秒
+  // 震动3秒并播放铃声
   void _vibrate3Seconds() async {
+    // 播放系统通知铃声（通过原生方法）
+    _playNotificationSound();
+
     // 连续震动3秒，每200ms震动一次
     for (int i = 0; i < 15; i++) {
       await HapticFeedback.heavyImpact();
       await Future.delayed(const Duration(milliseconds: 200));
+    }
+  }
+
+  // 播放系统通知铃声
+  static const _soundChannel = MethodChannel('com.example.flutter_application_1/clock');
+
+  Future<void> _playNotificationSound() async {
+    try {
+      await _soundChannel.invokeMethod('playNotificationSound');
+    } catch (e) {
+      // 如果原生方法调用失败，使用 audioplayers 播放默认提示音
+      try {
+        // 使用在线的短提示音
+        await _audioPlayer.setReleaseMode(ReleaseMode.release);
+        await _audioPlayer.setSourceUrl(
+          'https://www.soundjay.com/buttons/beep-01a.mp3',
+        );
+        await _audioPlayer.resume();
+      } catch (_) {
+        // 忽略音频播放错误
+      }
     }
   }
 
@@ -353,6 +379,7 @@ class LabClockProvider with ChangeNotifier, WidgetsBindingObserver {
   @override
   void dispose() {
     _timer?.cancel();
+    _audioPlayer.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
