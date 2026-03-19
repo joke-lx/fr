@@ -195,7 +195,9 @@ class _GameHubPage extends StatefulWidget {
 class _GameHubPageState extends State<_GameHubPage> {
   late List<DesktopItem> desktopItems;
   DesktopItem? draggingItem;
-  Offset? dragOffset;
+
+  // 使用 ValueNotifier 避免每帧 setState
+  final ValueNotifier<Offset> _dragOffsetNotifier = ValueNotifier(Offset.zero);
 
   // 预计算的可见项目，避免每帧重新过滤
   late List<DesktopItem> _visibleItems;
@@ -206,6 +208,12 @@ class _GameHubPageState extends State<_GameHubPage> {
     desktopItems = createDefaultDesktop();
     _visibleItems = [];
     _updateVisibleItems(9);
+  }
+
+  @override
+  void dispose() {
+    _dragOffsetNotifier.dispose();
+    super.dispose();
   }
 
   void _updateVisibleItems(int visibleRowCount) {
