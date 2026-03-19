@@ -281,6 +281,11 @@ class _GameHubPageState extends State<_GameHubPage> {
   }
 
   void _onDragStart(DesktopItem item) {
+    // 如果已经在拖动，忽略其他item的onPanStart
+    if (_draggingItemNotifier.value != null) {
+      print('⚠️ [DragStart] Already dragging ${_draggingItemNotifier.value?.id}, ignore ${item.id}');
+      return;
+    }
     print('🎯 [DragStart] item: ${item.id}');
     _draggingItemNotifier.value = item;
     _dragOffsetNotifier.value = Offset.zero;
