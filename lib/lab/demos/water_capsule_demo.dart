@@ -332,11 +332,9 @@ class _WaveCapsuleState extends State<WaveCapsule> {
     final percentage = widget.percentageValue;
     final waveValue = widget.waveAnimation.value;
 
-    // 波浪参数随水位变化
-    // 水位越高，波浪频率越低(波长越长)，波浪深度越浅
-    // 水位越低，波浪频率越高(波长越短)，波浪深度越深
-    final waveDepth = 3 + (100 - percentage) / 100 * 7; // 3-10之间变化
-    final waveFrequency = 0.6 + (100 - percentage) / 100 * 0.8; // 0.6-1.4之间变化
+    // 波浪参数随水位变化 - 保持稳定速度
+    final waveDepth = 3 + (100 - percentage) / 100 * 4; // 3-7之间变化
+    final waveFrequency = 0.3; // 固定频率，保持稳定速度
 
     // 容器宽度60,高度160
     final width = 60.0;
