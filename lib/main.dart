@@ -162,11 +162,11 @@ class _MainScreenState extends State<MainScreen> {
   final PageController _pageController = PageController();
 
   final List<Widget> _pages = const [
-    HomePage(),      // 0: 主页
-    FriendsPage(),   // 1: 聊天
-    SizedBox(),      // 2: +号占位 (由底部栏单独处理)
-    FriendsPage(),   // 3: 通讯录 (复用FriendsPage)
-    _DevPage(),      // 4: 待开发
+    ProfilePage(),  // 0: 主页（用户页面）
+    HomePage(),     // 1: 聊天
+    SizedBox(),     // 2: +号占位 (由底部栏单独处理)
+    FriendsPage(),  // 3: 通讯录
+    _DevPage(),     // 4: 待开发
   ];
 
   @override
