@@ -7,6 +7,7 @@ import 'screens/friends/friends_page.dart';
 import 'screens/profile/profile_page.dart';
 import 'screens/lab/lab_page.dart';
 import 'lab/lab_container.dart';
+import 'widgets/xiaodouzi_bottom_bar.dart';
 import 'lab/demos/grid_dashboard_demo.dart';
 import 'lab/demos/notebook_demo.dart';
 import 'lab/demos/clock_demo.dart';
@@ -161,9 +162,11 @@ class _MainScreenState extends State<MainScreen> {
   final PageController _pageController = PageController();
 
   final List<Widget> _pages = const [
-    HomePage(),
-    FriendsPage(),
-    ProfilePage(),
+    HomePage(),      // 0: 主页
+    FriendsPage(),   // 1: 聊天
+    SizedBox(),      // 2: +号占位 (由底部栏单独处理)
+    FriendsPage(),   // 3: 通讯录 (复用FriendsPage)
+    _DevPage(),      // 4: 待开发
   ];
 
   @override
@@ -193,11 +196,18 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onItemTapped(int index) {
+    // +号按钮不切换页面
+    if (index == 2) return;
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
+  }
+
+  void _onAddPressed() {
+    // TODO: 实现添加功能
+    debugPrint('添加按钮被点击');
   }
 
   @override
@@ -208,32 +218,41 @@ class _MainScreenState extends State<MainScreen> {
         onPageChanged: _onPageChanged,
         children: _pages,
       ),
-      bottomNavigationBar: Consumer<ChatSessionProvider>(
-        builder: (context, sessionProvider, child) {
-          final unreadCount = sessionProvider.totalUnreadCount;
+      bottomNavigationBar: XiaoDouZiBottomBar(
+        currentIndex: _selectedIndex,
+        onItemSelected: _onItemTapped,
+        onAddPressed: _onAddPressed,
+      ),
+    );
+  }
+}
 
-          return NavigationBar(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: _onItemTapped,
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.chat_bubble_outline),
-                selectedIcon: const Icon(Icons.chat_bubble),
-                label: '聊天',
+/// 待开发页面占位符
+class _DevPage extends StatelessWidget {
+  const _DevPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.construction_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '功能待开发',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
               ),
-              NavigationDestination(
-                icon: const Icon(Icons.people_outline),
-                selectedIcon: const Icon(Icons.people),
-                label: '通讯录',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.person_outline),
-                selectedIcon: const Icon(Icons.person),
-                label: '我的',
-              ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       ),
     );
   }
