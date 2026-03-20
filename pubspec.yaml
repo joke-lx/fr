@@ -111,6 +111,9 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # App Icon Generator
+  flutter_launcher_icons: ^0.14.2
+
   # JSON Serialization Code Generation
   build_runner: ^2.4.13
   json_serializable: ^6.8.0
@@ -157,3 +160,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# App Icon Configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "res/image.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "res/image.png"
