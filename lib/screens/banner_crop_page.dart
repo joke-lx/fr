@@ -11,6 +11,24 @@ class BannerCropPage extends StatefulWidget {
 
 class _BannerCropPageState extends State<BannerCropPage> {
   String? _selectedPath;
+  double _targetRatio = 16 / 9; // 默认值，会在initState中更新为实际值
+
+  @override
+  void initState() {
+    super.initState();
+    // 计算实际的Banner显示比例
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        // Banner实际显示高度为expandedHeight: 200
+        // 但需要考虑SafeArea和状态栏，实际可见高度会略有不同
+        const bannerHeight = 200.0;
+        setState(() {
+          _targetRatio = screenWidth / bannerHeight;
+        });
+      }
+    });
+  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -26,6 +44,16 @@ class _BannerCropPageState extends State<BannerCropPage> {
     if (_selectedPath != null) {
       Navigator.pop(context, _selectedPath);
     }
+  }
+
+  String _getRatioString() {
+    // 转换为最接近的常见比例描述
+    final ratio = _targetRatio;
+    if ((ratio - 16 / 9).abs() < 0.1) return '16:9';
+    if ((ratio - 4 / 3).abs() < 0.1) return '4:3';
+    if ((ratio - 21 / 9).abs() < 0.1) return '21:9';
+    if ((ratio - 1).abs() < 0.1) return '1:1';
+    return '${ratio.toStringAsFixed(1)}:1';
   }
 
   @override
@@ -87,14 +115,18 @@ class _BannerCropPageState extends State<BannerCropPage> {
         borderRadius: BorderRadius.circular(12),
         child: Column(
           children: [
-            // 16:9 预览区域
+            // 实际比例预览区域
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.file(
-                    File(_selectedPath!),
-                    fit: BoxFit.cover,
+                  // 使用实际显示比例
+                  AspectRatio(
+                    aspectRatio: _targetRatio,
+                    child: Image.file(
+                      File(_selectedPath!),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   // 半透明边框
                   Positioned.fill(
@@ -120,9 +152,9 @@ class _BannerCropPageState extends State<BannerCropPage> {
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Text(
-                          '将裁剪为16:9比例',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        child: Text(
+                          '将裁剪为${_getRatioString()}比例',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
                         ),
                       ),
                     ),
@@ -144,7 +176,7 @@ class _BannerCropPageState extends State<BannerCropPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '图片会自动适配16:9显示比例',
+                      '根据屏幕宽度自动计算裁剪比例',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
@@ -178,7 +210,7 @@ class _BannerCropPageState extends State<BannerCropPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '推荐比例 16:9',
+            '将自动适配为显示比例',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                 ),
