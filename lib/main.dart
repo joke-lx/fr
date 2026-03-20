@@ -24,6 +24,7 @@ import 'lab/demos/api_test_demo.dart';
 import 'lab/demos/calendar_demo.dart';
 import 'lab/demos/my_diary_header_demo.dart';
 import 'lab/demos/water_capsule_demo.dart';
+import 'lab/demos/notification_demo.dart';
 import 'lab/providers/lab_note_provider.dart';
 import 'lab/providers/lab_clock_provider.dart';
 
@@ -46,6 +47,7 @@ void main() {
   registerCalendarDemo();
   registerMyDiaryHeaderDemo();
   registerWaterCapsuleDemo();
+  registerNotificationDemo();
   runApp(const MyApp());
 }
 
