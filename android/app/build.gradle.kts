@@ -11,6 +11,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // 启用核心库脱糖，支持Java 8+ API
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -87,6 +89,9 @@ flutter {
 
 // 依赖配置
 dependencies {
+    // 核心库脱糖
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
     // Multidex支持
     implementation("androidx.multidex:multidex:2.0.1")
 
