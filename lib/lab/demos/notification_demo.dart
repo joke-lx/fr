@@ -89,8 +89,43 @@ class _NotificationPageState extends State<_NotificationPage> {
         final androidPlugin =
             _notifications.resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin>();
+
+        // Android 13+ 使用 requestNotificationsPermission 会返回 null/pending
+        // 需要引导用户去设置页面手动开启
         final granted = await androidPlugin?.requestNotificationsPermission();
-        return granted ?? false;
+        if (granted == true) {
+          return true;
+        }
+
+        // 如果权限被拒绝或需要手动设置，引导用户去系统设置
+        if (!mounted) return false;
+        final shouldOpenSettings = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('需要通知权限'),
+            content: const Text(
+              '通知权限未开启。\n\n'
+              '请点击"去设置"按钮，然后在权限设置中开启通知权限。',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('去设置'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldOpenSettings == true) {
+          // 尝试打开应用通知设置页面
+          await androidPlugin?.requestNotificationsPermission();
+          return false; // 打开设置后用户自行开启，返回false
+        }
+        return false;
       } else if (Platform.isIOS) {
         final iosPlugin = _notifications.resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>();
