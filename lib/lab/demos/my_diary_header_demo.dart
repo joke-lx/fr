@@ -349,10 +349,49 @@ class _DiaryCard {
   });
 }
 
-class _DiaryCardWidget extends StatelessWidget {
+class _DiaryCardWidget extends StatefulWidget {
   final _DiaryCard card;
 
   const _DiaryCardWidget({required this.card});
+
+  @override
+  State<_DiaryCardWidget> createState() => _DiaryCardWidgetState();
+}
+
+class _DiaryCardWidgetState extends State<_DiaryCardWidget>
+    with SingleTickerProviderStateMixin {
+  bool _isExpanded = false;
+  late AnimationController _controller;
+  late Animation<double> _iconTurns;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _iconTurns = Tween<double>(begin: 0.0, end: 0.5).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggleExpand() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+      if (_isExpanded) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -360,75 +399,87 @@ class _DiaryCardWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
         decoration: BoxDecoration(
-          color: card.color.withOpacity(0.15),
+          color: widget.card.color.withOpacity(0.15),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: card.color.withOpacity(0.3),
+            color: widget.card.color.withOpacity(0.3),
             width: 1,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // 左侧图标
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: card.color,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(
-                  card.icon,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              // 中间内容
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      card.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: card.color.withOpacity(0.9),
-                      ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: _toggleExpand,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // 左侧图标
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: widget.card.color,
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      card.content,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    child: Icon(
+                      widget.card.icon,
+                      color: Colors.white,
+                      size: 24,
                     ),
-                  ],
-                ),
-              ),
-              // 右侧时间
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: card.color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  card.time,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: card.color,
                   ),
-                ),
+                  const SizedBox(width: 16),
+                  // 中间内容
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.card.title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: widget.card.color.withOpacity(0.9),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        AnimatedCrossFade(
+                          firstChild: Text(
+                            widget.card.content,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          secondChild: Text(
+                            widget.card.content,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          crossFadeState: _isExpanded
+                              ? CrossFadeState.showSecond
+                              : CrossFadeState.showFirst,
+                          duration: const Duration(milliseconds: 200),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 展开图标
+                  RotationTransition(
+                    turns: _iconTurns,
+                    child: Icon(
+                      Icons.expand_more,
+                      color: widget.card.color,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
