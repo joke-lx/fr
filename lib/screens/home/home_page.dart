@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
-import '../chat/chat_detail_page.dart';
+import '../chat/ai_chat_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -93,7 +93,7 @@ class _HomePageState extends State<HomePage> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ChatDetailPage(friend: friend),
+              builder: (context) => const AIChatPage(title: 'AI 聊天'),
             ),
           );
           // Refresh sessions when returning

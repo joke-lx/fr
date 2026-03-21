@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
-import '../chat/chat_detail_page.dart';
+import '../chat/ai_chat_page.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -243,7 +243,7 @@ class _FriendsPageState extends State<FriendsPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ChatDetailPage(friend: friend.user),
+                    builder: (context) => const AIChatPage(title: 'AI 聊天'),
                   ),
                 );
               },

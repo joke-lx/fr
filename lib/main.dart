@@ -114,6 +114,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => FriendProvider()),
         ChangeNotifierProvider(create: (_) => LabNoteProvider()),
         ChangeNotifierProvider(create: (_) => LabClockProvider()),
+        ChangeNotifierProvider(create: (_) => AIChatProvider()),
         ChangeNotifierProxyProvider<UserProvider, ChatSessionProvider>(
           create: (_) => ChatSessionProvider(),
           update: (_, userProvider, sessionProvider) {

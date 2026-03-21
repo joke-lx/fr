@@ -4,19 +4,20 @@ import '../../providers/ai_chat_provider.dart';
 import '../../models/ai_chat_message.dart';
 import 'ai_chat_settings_page.dart';
 
-class ChatDetailPage extends StatefulWidget {
+/// AI 聊天页面
+class AIChatPage extends StatefulWidget {
   final String title;
 
-  const ChatDetailPage({
+  const AIChatPage({
     super.key,
     this.title = 'AI 聊天',
   });
 
   @override
-  State<ChatDetailPage> createState() => _ChatDetailPageState();
+  State<AIChatPage> createState() => _AIChatPageState();
 }
 
-class _ChatDetailPageState extends State<ChatDetailPage> {
+class _AIChatPageState extends State<AIChatPage> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _inputController = TextEditingController();
   bool _isSending = false;
