@@ -15,6 +15,12 @@ class _AIChatSettingsPageState extends State<AIChatSettingsPage> {
   late TextEditingController _apiKeyController;
   late TextEditingController _modelController;
   late TextEditingController _baseURLController;
+  // 数据库配置
+  late TextEditingController _dbHostController;
+  late TextEditingController _dbPortController;
+  late TextEditingController _dbNameController;
+  late TextEditingController _dbUserController;
+  late TextEditingController _dbPasswordController;
   String _selectedType = 'claude';
   bool _isSaving = false;
 
@@ -25,6 +31,11 @@ class _AIChatSettingsPageState extends State<AIChatSettingsPage> {
     _apiKeyController = TextEditingController(text: settings.apiKey);
     _modelController = TextEditingController(text: settings.model);
     _baseURLController = TextEditingController(text: settings.baseURL);
+    _dbHostController = TextEditingController(text: settings.dbHost);
+    _dbPortController = TextEditingController(text: settings.dbPort);
+    _dbNameController = TextEditingController(text: settings.dbName);
+    _dbUserController = TextEditingController(text: settings.dbUser);
+    _dbPasswordController = TextEditingController(text: settings.dbPassword);
     _selectedType = settings.type;
   }
 
@@ -33,6 +44,11 @@ class _AIChatSettingsPageState extends State<AIChatSettingsPage> {
     _apiKeyController.dispose();
     _modelController.dispose();
     _baseURLController.dispose();
+    _dbHostController.dispose();
+    _dbPortController.dispose();
+    _dbNameController.dispose();
+    _dbUserController.dispose();
+    _dbPasswordController.dispose();
     super.dispose();
   }
 
@@ -46,6 +62,11 @@ class _AIChatSettingsPageState extends State<AIChatSettingsPage> {
       model: _modelController.text.trim(),
       baseURL: _baseURLController.text.trim(),
       type: _selectedType,
+      dbHost: _dbHostController.text.trim(),
+      dbPort: _dbPortController.text.trim(),
+      dbName: _dbNameController.text.trim(),
+      dbUser: _dbUserController.text.trim(),
+      dbPassword: _dbPasswordController.text.trim(),
     );
 
     await context.read<AIChatProvider>().updateSettings(settings);
@@ -76,6 +97,11 @@ class _AIChatSettingsPageState extends State<AIChatSettingsPage> {
       model: _modelController.text.trim(),
       baseURL: _baseURLController.text.trim(),
       type: _selectedType,
+      dbHost: _dbHostController.text.trim(),
+      dbPort: _dbPortController.text.trim(),
+      dbName: _dbNameController.text.trim(),
+      dbUser: _dbUserController.text.trim(),
+      dbPassword: _dbPasswordController.text.trim(),
     );
 
     // 显示测试中提示
@@ -200,6 +226,92 @@ class _AIChatSettingsPageState extends State<AIChatSettingsPage> {
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.link),
             ),
+          ),
+          const SizedBox(height: 24),
+
+          // 数据库配置标题
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.storage, color: Colors.green[700]),
+                const SizedBox(width: 8),
+                Text(
+                  '数据库配置 (Agent)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 数据库 Host
+          TextField(
+            controller: _dbHostController,
+            decoration: const InputDecoration(
+              labelText: '数据库 Host',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.dns),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 数据库 Port 和 Database 并排
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _dbPortController,
+                  decoration: const InputDecoration(
+                    labelText: '端口',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.numbers),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _dbNameController,
+                  decoration: const InputDecoration(
+                    labelText: '数据库名',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.storage),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 数据库用户名
+          TextField(
+            controller: _dbUserController,
+            decoration: const InputDecoration(
+              labelText: '数据库用户',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.person),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 数据库密码
+          TextField(
+            controller: _dbPasswordController,
+            decoration: const InputDecoration(
+              labelText: '数据库密码',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.lock),
+            ),
+            obscureText: true,
           ),
           const SizedBox(height: 24),
 

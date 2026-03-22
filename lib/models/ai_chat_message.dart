@@ -96,12 +96,25 @@ class AISettings {
   final String model;
   final String baseURL;
   final String type;
+  // 数据库配置
+  final String dbHost;
+  final String dbPort;
+  final String dbName;
+  final String dbUser;
+  final String dbPassword;
+  final String dbType;
 
   AISettings({
     this.apiKey = '',
     this.model = '',
     this.baseURL = '',
     this.type = 'claude',
+    this.dbHost = '139.9.42.203',
+    this.dbPort = '5432',
+    this.dbName = 'postgres',
+    this.dbUser = 'postgres',
+    this.dbPassword = '223456',
+    this.dbType = 'pgsql',
   });
 
   bool get isConfigured => apiKey.isNotEmpty;
@@ -112,6 +125,12 @@ class AISettings {
       'model': model,
       'baseURL': baseURL,
       'type': type,
+      'dbHost': dbHost,
+      'dbPort': dbPort,
+      'dbName': dbName,
+      'dbUser': dbUser,
+      'dbPassword': dbPassword,
+      'dbType': dbType,
     };
   }
 
@@ -121,6 +140,12 @@ class AISettings {
       model: json['model'] as String? ?? '',
       baseURL: json['baseURL'] as String? ?? '',
       type: json['type'] as String? ?? 'claude',
+      dbHost: json['dbHost'] as String? ?? '139.9.42.203',
+      dbPort: json['dbPort'] as String? ?? '5432',
+      dbName: json['dbName'] as String? ?? 'postgres',
+      dbUser: json['dbUser'] as String? ?? 'postgres',
+      dbPassword: json['dbPassword'] as String? ?? '223456',
+      dbType: json['dbType'] as String? ?? 'pgsql',
     );
   }
 

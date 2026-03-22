@@ -124,6 +124,14 @@ class AgentChatProvider with ChangeNotifier {
       final body = {
         'apiKey': _settings.apiKey,
         'eventDescription': eventDescription,
+        'db': {
+          'host': _settings.dbHost,
+          'port': _settings.dbPort,
+          'database': _settings.dbName,
+          'user': _settings.dbUser,
+          'password': _settings.dbPassword,
+          'type': _settings.dbType,
+        },
       };
 
       final response = await http.post(
