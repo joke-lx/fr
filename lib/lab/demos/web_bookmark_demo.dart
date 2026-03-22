@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../lab_container.dart';
+import '../models/bookmark_item.dart';
+import '../providers/bookmark_provider.dart';
 
 /// Web Bookmark Demo
 class WebBookmarkDemo extends DemoPage {
@@ -13,276 +12,11 @@ class WebBookmarkDemo extends DemoPage {
   String get title => 'Web Bookmarks';
 
   @override
-  String get description => 'Bookmark and manage websites';
+  String get description => 'Bookmark folders with drag-drop';
 
   @override
   Widget buildPage(BuildContext context) {
     return const _WebBookmarkPage();
-  }
-}
-
-/// Icon name to IconData constant mapping
-class BookmarkIcons {
-  static const Map<String, IconData> _iconMap = {
-    'public': Icons.public,
-    'search': Icons.search,
-    'code': Icons.code,
-    'play_circle_filled': Icons.play_circle_filled,
-    'flutter_dash': Icons.flutter_dash,
-    'edit': Icons.edit,
-    'video_library': Icons.video_library,
-    'shopping_bag': Icons.shopping_bag,
-    'music_video': Icons.music_video,
-    'new_releases': Icons.new_releases,
-    'article': Icons.article,
-    'school': Icons.school,
-    'business': Icons.business,
-    'gamepad': Icons.gamepad,
-    'alternate_email': Icons.alternate_email,
-  };
-
-  static IconData getIcon(String name) {
-    return _iconMap[name] ?? Icons.public;
-  }
-
-  static String getName(IconData icon) {
-    for (final entry in _iconMap.entries) {
-      if (entry.value == icon) {
-        return entry.key;
-      }
-    }
-    return 'public';
-  }
-
-  static List<String> get availableNames => _iconMap.keys.toList();
-}
-
-/// Bookmark Item Model
-class BookmarkItem {
-  final String id;
-  final String name;
-  final String url;
-  final String iconName;
-  final Color color;
-
-  IconData get icon => BookmarkIcons.getIcon(iconName);
-
-  BookmarkItem({
-    required this.id,
-    required this.name,
-    required this.url,
-    required this.iconName,
-    required this.color,
-  });
-
-  BookmarkItem.withIcon({
-    required this.id,
-    required this.name,
-    required this.url,
-    required IconData icon,
-    required this.color,
-  }) : iconName = BookmarkIcons.getName(icon);
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'url': url,
-      'iconName': iconName,
-      'colorValue': color.value,
-    };
-  }
-
-  static BookmarkItem fromJson(Map<String, dynamic> json) {
-    return BookmarkItem(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      url: json['url'] as String,
-      iconName: json['iconName'] as String? ?? 'public',
-      color: Color(json['colorValue'] as int),
-    );
-  }
-
-  BookmarkItem copyWith({
-    String? id,
-    String? name,
-    String? url,
-    String? iconName,
-    Color? color,
-  }) {
-    return BookmarkItem(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      url: url ?? this.url,
-      iconName: iconName ?? this.iconName,
-      color: color ?? this.color,
-    );
-  }
-}
-
-/// Bookmark Controller
-class BookmarkController extends ChangeNotifier {
-  static const String _storageKey = 'web_bookmarks';
-  static const String _settingsKey = 'web_bookmark_settings';
-
-  List<BookmarkItem> _items = [];
-  bool _useExternalBrowser = false;
-  BookmarkItem? _draggingItem;
-  int? _hoverIndex;
-
-  List<BookmarkItem> get items => _items;
-  bool get useExternalBrowser => _useExternalBrowser;
-  BookmarkItem? get draggingItem => _draggingItem;
-  int? get hoverIndex => _hoverIndex;
-
-  List<BookmarkItem> get displayItems {
-    if (_draggingItem != null && _hoverIndex != null) {
-      final list = List<BookmarkItem>.from(_items);
-      final clamped = _hoverIndex!.clamp(0, list.length);
-      list.insert(clamped, _draggingItem!);
-      return list;
-    }
-    return _items;
-  }
-
-  BookmarkController() {
-    _loadFromStorage();
-  }
-
-  Future<void> _loadFromStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    _useExternalBrowser = prefs.getBool(_settingsKey) ?? false;
-
-    final itemsJson = prefs.getString(_storageKey);
-    if (itemsJson != null) {
-      try {
-        final List<dynamic> decoded = jsonDecode(itemsJson);
-        _items = decoded.map((e) => BookmarkItem.fromJson(e as Map<String, dynamic>)).toList();
-      } catch (e) {
-        _items = _getDefaultBookmarks();
-      }
-    } else {
-      _items = _getDefaultBookmarks();
-    }
-    notifyListeners();
-  }
-
-  List<BookmarkItem> _getDefaultBookmarks() {
-    return [
-      BookmarkItem(
-        id: '1',
-        name: 'Google',
-        url: 'https://www.google.com',
-        iconName: 'search',
-        color: const Color(0xFF4285F4),
-      ),
-      BookmarkItem(
-        id: '2',
-        name: 'GitHub',
-        url: 'https://github.com',
-        iconName: 'code',
-        color: const Color(0xFF24292E),
-      ),
-      BookmarkItem(
-        id: '3',
-        name: 'Bilibili',
-        url: 'https://www.bilibili.com',
-        iconName: 'play_circle_filled',
-        color: const Color(0xFF00A1D6),
-      ),
-      BookmarkItem(
-        id: '4',
-        name: 'Flutter',
-        url: 'https://flutter.dev',
-        iconName: 'flutter_dash',
-        color: const Color(0xFF02569B),
-      ),
-      BookmarkItem(
-        id: '5',
-        name: 'YouTube',
-        url: 'https://www.youtube.com',
-        iconName: 'video_library',
-        color: const Color(0xFFFF0000),
-      ),
-      BookmarkItem(
-        id: '6',
-        name: 'Twitter',
-        url: 'https://twitter.com',
-        iconName: 'alternate_email',
-        color: const Color(0xFF1DA1F2),
-      ),
-    ];
-  }
-
-  Future<void> _saveToStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final itemsJson = jsonEncode(_items.map((e) => e.toJson()).toList());
-    await prefs.setString(_storageKey, itemsJson);
-  }
-
-  void startDrag(BookmarkItem item) {
-    _draggingItem = item;
-    _hoverIndex = null;
-    HapticFeedback.lightImpact();
-    notifyListeners();
-  }
-
-  void updateHoverIndex(int index) {
-    _hoverIndex = index;
-    notifyListeners();
-  }
-
-  void cancelDrag() {
-    _draggingItem = null;
-    _hoverIndex = null;
-    notifyListeners();
-  }
-
-  void commitReorder(int oldIndex, int newIndex) {
-    if (_draggingItem == null || _hoverIndex == null) {
-      cancelDrag();
-      return;
-    }
-
-    final item = _draggingItem!;
-    final clampedIndex = _hoverIndex!.clamp(0, _items.length);
-
-    _items.removeWhere((e) => e.id == item.id);
-    _items.insert(clampedIndex, item);
-
-    _draggingItem = null;
-    _hoverIndex = null;
-
-    _saveToStorage();
-    notifyListeners();
-  }
-
-  Future<void> setUseExternalBrowser(bool value) async {
-    _useExternalBrowser = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_settingsKey, value);
-    notifyListeners();
-  }
-
-  Future<void> addItem(BookmarkItem item) async {
-    _items.add(item);
-    await _saveToStorage();
-    notifyListeners();
-  }
-
-  Future<void> editItem(String id, BookmarkItem newItem) async {
-    final index = _items.indexWhere((e) => e.id == id);
-    if (index >= 0) {
-      _items[index] = newItem;
-      await _saveToStorage();
-      notifyListeners();
-    }
-  }
-
-  Future<void> deleteItem(String id) async {
-    _items.removeWhere((e) => e.id == id);
-    await _saveToStorage();
-    notifyListeners();
   }
 }
 
@@ -298,7 +32,7 @@ class _WebBookmarkPageState extends State<_WebBookmarkPage> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => BookmarkController(),
+      create: (_) => BookmarkProvider(),
       child: const _BookmarkGridView(),
     );
   }
@@ -318,7 +52,7 @@ class _BookmarkGridView extends StatelessWidget {
         foregroundColor: Colors.black,
         elevation: 0,
         actions: [
-          Consumer<BookmarkController>(
+          Consumer<BookmarkProvider>(
             builder: (context, controller, _) {
               return IconButton(
                 icon: Icon(controller.useExternalBrowser
@@ -331,7 +65,7 @@ class _BookmarkGridView extends StatelessWidget {
           ),
         ],
       ),
-      body: Consumer<BookmarkController>(
+      body: Consumer<BookmarkProvider>(
         builder: (context, controller, _) {
           final items = controller.displayItems;
 
@@ -356,14 +90,18 @@ class _BookmarkGridView extends StatelessWidget {
               crossAxisCount: 4,
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
-              childAspectRatio: 0.9,
+              childAspectRatio: 0.85,
             ),
             itemCount: items.length,
             itemBuilder: (context, index) {
               final item = items[index];
               final originalIndex = controller.items.indexWhere((e) => e.id == item.id);
 
-              return _buildBookmarkCard(
+              if (item is BookmarkPlaceholder) {
+                return const _PlaceholderTile();
+              }
+
+              return _buildDraggableTile(
                 context,
                 controller,
                 item,
@@ -375,23 +113,20 @@ class _BookmarkGridView extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddBookmarkDialog(context),
+        onPressed: () => _showAddDialog(context),
         backgroundColor: const Color(0xFF007AFF),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildBookmarkCard(
+  Widget _buildDraggableTile(
     BuildContext context,
-    BookmarkController controller,
+    BookmarkProvider controller,
     BookmarkItem item,
     int displayIndex,
     int originalIndex,
   ) {
-    final isDragging = controller.draggingItem?.id == item.id;
-    final isHover = controller.hoverIndex == displayIndex;
-
     return LongPressDraggable<BookmarkItem>(
       data: item,
       delay: const Duration(milliseconds: 200),
@@ -404,9 +139,9 @@ class _BookmarkGridView extends StatelessWidget {
       feedback: Material(
         color: Colors.transparent,
         child: Opacity(
-          opacity: 0.9,
+          opacity: 0.95,
           child: Transform.scale(
-            scale: 1.1,
+            scale: 1.05,
             child: SizedBox(
               width: 80,
               height: 90,
@@ -416,46 +151,53 @@ class _BookmarkGridView extends StatelessWidget {
         ),
       ),
       childWhenDragging: Opacity(
-        opacity: 0.3,
+        opacity: 0.0,
         child: _BookmarkCard(item: item),
       ),
+      child: _buildTileWithTarget(context, controller, item, displayIndex),
+    );
+  }
+
+  Widget _buildTileWithTarget(
+    BuildContext context,
+    BookmarkProvider controller,
+    BookmarkItem item,
+    int displayIndex,
+  ) {
+    VoidCallback? onTap;
+    if (item is BookmarkFolder) {
+      onTap = () => _FolderSheet.show(context, item);
+    } else if (item is SingleBookmark) {
+      onTap = () => _openBookmark(context, item);
+    }
+
+    return _ItemMergeTarget(
+      controller: controller,
+      targetItem: item,
       child: DragTarget<BookmarkItem>(
         onWillAcceptWithDetails: (details) {
           if (details.data.id == item.id) return false;
-          controller.updateHoverIndex(displayIndex);
-          return true;
+          final canMerge = item is SingleBookmark || item is BookmarkFolder;
+          if (canMerge && details.data is SingleBookmark) {
+            controller.updateHoverIndex(displayIndex);
+          }
+          return canMerge;
         },
         onAcceptWithDetails: (details) {
-          final draggedIndex = controller.items.indexWhere((e) => e.id == details.data.id);
-          if (draggedIndex >= 0) {
-            controller.commitReorder(draggedIndex, displayIndex);
-          }
+          controller.commitMergeToFolder(item.id);
         },
         onLeave: (_) {
           controller.updateHoverIndex(-1);
         },
         builder: (context, candidateData, rejectedData) {
-          return GestureDetector(
-            onTap: () => _openBookmark(context, item),
-            onLongPress: () => _showBookmarkOptions(context, item),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: isHover
-                    ? Border.all(color: const Color(0xFF007AFF), width: 2)
-                    : null,
-              ),
-              child: _BookmarkCard(item: item),
-            ),
-          );
+          return _BookmarkCard(item: item, onTap: onTap);
         },
       ),
     );
   }
 
-  void _openBookmark(BuildContext context, BookmarkItem item) async {
-    final controller = Provider.of<BookmarkController>(context, listen: false);
+  void _openBookmark(BuildContext context, SingleBookmark item) async {
+    final controller = Provider.of<BookmarkProvider>(context, listen: false);
 
     if (controller.useExternalBrowser) {
       final uri = Uri.parse(item.url);
@@ -472,60 +214,7 @@ class _BookmarkGridView extends StatelessWidget {
     }
   }
 
-  void _showBookmarkOptions(BuildContext context, BookmarkItem item) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Edit'),
-              onTap: () {
-                Navigator.pop(context);
-                _showEditBookmarkDialog(context, item);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDelete(context, item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context, BookmarkItem item) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Bookmark'),
-        content: Text('Delete "${item.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Provider.of<BookmarkController>(context, listen: false).deleteItem(item.id);
-              Navigator.pop(context);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showBrowserSettingDialog(BuildContext context, BookmarkController controller) {
+  void _showBrowserSettingDialog(BuildContext context, BookmarkProvider controller) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -565,275 +254,246 @@ class _BookmarkGridView extends StatelessWidget {
     );
   }
 
-  void _showAddBookmarkDialog(BuildContext context) {
-    final controller = Provider.of<BookmarkController>(context, listen: false);
-    final nameController = TextEditingController();
+  void _showAddDialog(BuildContext context) {
+    final controller = Provider.of<BookmarkProvider>(context, listen: false);
+    bool isFolder = false;
+    final titleController = TextEditingController();
     final urlController = TextEditingController();
     String selectedIconName = 'public';
     Color selectedColor = Colors.blue;
+    final Set<String> selectedBookmarks = {};
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Add Bookmark'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    border: OutlineInputBorder(),
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'URL',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Select Icon:', style: TextStyle(fontSize: 14)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _availableIconNames.map((iconName) {
-                    final isSelected = selectedIconName == iconName;
-                    final icon = BookmarkIcons.getIcon(iconName);
-                    return GestureDetector(
-                      onTap: () => setState(() => selectedIconName = iconName),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? selectedColor.withAlpha(51)
-                              : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSelected ? selectedColor : Colors.grey[300]!,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Icon(icon,
-                            color: isSelected ? selectedColor : Colors.grey[600],
-                            size: 24),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                const Text('Select Color:', style: TextStyle(fontSize: 14)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _availableColors.map((color) {
-                    final isSelected = selectedColor == color;
-                    return GestureDetector(
-                      onTap: () => setState(() => selectedColor = color),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected ? Colors.black : Colors.grey[300]!,
-                            width: isSelected ? 3 : 1,
-                          ),
-                        ),
-                        child: isSelected
-                            ? const Icon(Icons.check, color: Colors.white, size: 20)
-                            : null,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                var url = urlController.text.trim();
-                if (name.isEmpty || url.isEmpty) return;
+        builder: (context, setState) {
+          final availableBookmarks = controller.getSingleBookmarks();
 
-                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                  url = 'https://$url';
-                }
-
-                controller.addItem(BookmarkItem(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  name: name,
-                  url: url,
-                  iconName: selectedIconName,
-                  color: selectedColor,
-                ));
-                Navigator.pop(context);
-              },
-              child: const Text('Add'),
+          return AlertDialog(
+            title: Text(isFolder ? 'Create Folder' : 'Add Bookmark'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Bookmark'),
+                        selected: !isFolder,
+                        onSelected: (selected) {
+                          setState(() => isFolder = false);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('Folder'),
+                        selected: isFolder,
+                        onSelected: (selected) {
+                          setState(() => isFolder = true);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: titleController,
+                    decoration: InputDecoration(
+                      labelText: isFolder ? 'Folder Name' : 'Name',
+                      border: const OutlineInputBorder(),
+                    ),
+                    autofocus: true,
+                  ),
+                  if (!isFolder) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: urlController,
+                      decoration: const InputDecoration(
+                        labelText: 'URL',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Select Icon:', style: TextStyle(fontSize: 14)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: BookmarkIcons.availableNames.map((iconName) {
+                        final isSelected = selectedIconName == iconName;
+                        final icon = BookmarkIcons.getIcon(iconName);
+                        return GestureDetector(
+                          onTap: () => setState(() => selectedIconName = iconName),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? selectedColor.withAlpha(51)
+                                  : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? selectedColor : Colors.grey[300]!,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Icon(icon,
+                                color: isSelected ? selectedColor : Colors.grey[600],
+                                size: 24),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Select Color:', style: TextStyle(fontSize: 14)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _availableColors.map((color) {
+                        final isSelected = selectedColor == color;
+                        return GestureDetector(
+                          onTap: () => setState(() => selectedColor = color),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected ? Colors.black : Colors.grey[300]!,
+                                width: isSelected ? 3 : 1,
+                              ),
+                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check, color: Colors.white, size: 20)
+                                : null,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  if (isFolder && availableBookmarks.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text('Select bookmarks:', style: TextStyle(fontSize: 14)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: availableBookmarks.map((bookmark) {
+                        final isSelected = selectedBookmarks.contains(bookmark.id);
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              if (isSelected) {
+                                selectedBookmarks.remove(bookmark.id);
+                              } else {
+                                selectedBookmarks.add(bookmark.id);
+                              }
+                            });
+                          },
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? bookmark.color.withAlpha(51)
+                                  : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? bookmark.color : Colors.grey[300]!,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Stack(
+                              children: [
+                                Icon(bookmark.icon,
+                                    color: isSelected ? bookmark.color : Colors.grey[600],
+                                    size: 24),
+                                if (isSelected)
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.check, color: Colors.white, size: 10),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    if (selectedBookmarks.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Select at least 2 bookmarks',
+                          style: TextStyle(color: Colors.orange[700], fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final title = titleController.text.trim();
+                  if (title.isEmpty) return;
+
+                  if (isFolder) {
+                    if (selectedBookmarks.length < 2) return;
+
+                    final folderBookmarks = availableBookmarks
+                        .where((b) => selectedBookmarks.contains(b.id))
+                        .toList();
+
+                    controller.addItem(BookmarkFolder(
+                      id: 'folder_${DateTime.now().millisecondsSinceEpoch}',
+                      name: title,
+                      children: folderBookmarks,
+                    ));
+
+                    for (final bookmark in folderBookmarks) {
+                      controller.deleteItem(bookmark.id);
+                    }
+                  } else {
+                    var url = urlController.text.trim();
+                    if (url.isEmpty) return;
+
+                    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                      url = 'https://$url';
+                    }
+
+                    controller.addItem(SingleBookmark(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      name: title,
+                      url: url,
+                      iconName: selectedIconName,
+                      color: selectedColor,
+                    ));
+                  }
+                  Navigator.pop(context);
+                },
+                child: const Text('Create'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
-
-  void _showEditBookmarkDialog(BuildContext context, BookmarkItem item) {
-    final controller = Provider.of<BookmarkController>(context, listen: false);
-    final nameController = TextEditingController(text: item.name);
-    final urlController = TextEditingController(text: item.url);
-    String selectedIconName = item.iconName;
-    Color selectedColor = item.color;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Edit Bookmark'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'URL',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Select Icon:', style: TextStyle(fontSize: 14)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _availableIconNames.map((iconName) {
-                    final isSelected = selectedIconName == iconName;
-                    final icon = BookmarkIcons.getIcon(iconName);
-                    return GestureDetector(
-                      onTap: () => setState(() => selectedIconName = iconName),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? selectedColor.withAlpha(51)
-                              : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSelected ? selectedColor : Colors.grey[300]!,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Icon(icon,
-                            color: isSelected ? selectedColor : Colors.grey[600],
-                            size: 24),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                const Text('Select Color:', style: TextStyle(fontSize: 14)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _availableColors.map((color) {
-                    final isSelected = selectedColor == color;
-                    return GestureDetector(
-                      onTap: () => setState(() => selectedColor = color),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected ? Colors.black : Colors.grey[300]!,
-                            width: isSelected ? 3 : 1,
-                          ),
-                        ),
-                        child: isSelected
-                            ? const Icon(Icons.check, color: Colors.white, size: 20)
-                            : null,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                var url = urlController.text.trim();
-                if (name.isEmpty || url.isEmpty) return;
-
-                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                  url = 'https://$url';
-                }
-
-                controller.editItem(
-                  item.id,
-                  item.copyWith(
-                    name: name,
-                    url: url,
-                    iconName: selectedIconName,
-                    color: selectedColor,
-                  ),
-                );
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static const List<String> _availableIconNames = [
-    'public',
-    'search',
-    'code',
-    'play_circle_filled',
-    'flutter_dash',
-    'edit',
-    'video_library',
-    'shopping_bag',
-    'music_video',
-    'new_releases',
-    'article',
-    'school',
-    'business',
-    'gamepad',
-  ];
 
   static const List<Color> _availableColors = [
     Color(0xFF007AFF),
@@ -853,11 +513,32 @@ class _BookmarkGridView extends StatelessWidget {
 class _BookmarkCard extends StatelessWidget {
   final BookmarkItem item;
   final bool isDragging;
+  final VoidCallback? onTap;
 
-  const _BookmarkCard({required this.item, this.isDragging = false});
+  const _BookmarkCard({
+    required this.item,
+    this.isDragging = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    if (item is SingleBookmark) {
+      return _buildSingleBookmark(item as SingleBookmark);
+    } else if (item is BookmarkFolder) {
+      return _buildFolder(item as BookmarkFolder);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildSingleBookmark(SingleBookmark bookmark) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -865,7 +546,7 @@ class _BookmarkCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: isDragging
-                ? item.color.withAlpha(102)
+                ? bookmark.color.withAlpha(102)
                 : Colors.black.withAlpha(20),
             blurRadius: isDragging ? 16 : 4,
             offset: Offset(0, isDragging ? 8 : 2),
@@ -879,23 +560,23 @@ class _BookmarkCard extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: item.color,
+              color: bookmark.color,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: item.color.withAlpha(77),
+                  color: bookmark.color.withAlpha(77),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Icon(item.icon, color: Colors.white, size: 28),
+            child: Icon(bookmark.icon, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              item.name,
+              bookmark.name,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -910,11 +591,348 @@ class _BookmarkCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildFolder(BookmarkFolder folder) {
+    final children = folder.children.take(9).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: isDragging
+                ? Colors.blue.withAlpha(102)
+                : Colors.black.withAlpha(20),
+            blurRadius: isDragging ? 16 : 4,
+            offset: Offset(0, isDragging ? 8 : 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: _buildFolderPreviewGrid(children),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              folder.name,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF333333),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${folder.children.length}',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFolderPreviewGrid(List<SingleBookmark> children) {
+    final count = children.length;
+
+    if (count == 1) {
+      return Center(
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: children[0].color,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(children[0].icon, color: Colors.white, size: 20),
+        ),
+      );
+    } else if (count == 2) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildMiniIcon(children[0], 28),
+          const SizedBox(height: 2),
+          _buildMiniIcon(children[1], 28),
+        ],
+      );
+    } else if (count <= 4) {
+      return GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 2,
+          crossAxisSpacing: 2,
+        ),
+        itemCount: count,
+        itemBuilder: (context, index) => _buildMiniIcon(children[index], 24),
+      );
+    } else {
+      return GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 2,
+          crossAxisSpacing: 2,
+        ),
+        itemCount: count > 9 ? 9 : count,
+        itemBuilder: (context, index) => _buildMiniIcon(children[index], 20),
+      );
+    }
+  }
+
+  Widget _buildMiniIcon(SingleBookmark bookmark, double size) {
+    return Container(
+      decoration: BoxDecoration(
+        color: bookmark.color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(bookmark.icon, color: Colors.white, size: size * 0.55),
+    );
+  }
+}
+
+/// Placeholder Tile
+class _PlaceholderTile extends StatelessWidget {
+  const _PlaceholderTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withAlpha(20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.black.withAlpha(31),
+          width: 2,
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.drag_indicator, color: Colors.black26, size: 28),
+      ),
+    );
+  }
+}
+
+/// Item Merge Target
+class _ItemMergeTarget extends StatelessWidget {
+  final BookmarkProvider controller;
+  final BookmarkItem targetItem;
+  final Widget child;
+
+  const _ItemMergeTarget({
+    required this.controller,
+    required this.targetItem,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<BookmarkItem>(
+      onWillAcceptWithDetails: (details) {
+        if (details.data.id == targetItem.id) return false;
+        final canMerge = (targetItem is SingleBookmark || targetItem is BookmarkFolder) &&
+            (details.data is SingleBookmark);
+        return canMerge;
+      },
+      onLeave: (_) {
+        controller.updateHoverIndex(-1);
+      },
+      onAcceptWithDetails: (details) {
+        controller.commitMergeToFolder(targetItem.id);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHover = controller.draggingItem != null &&
+            controller.hoverIndex != null &&
+            targetItem.id == controller.displayItems[controller.hoverIndex!]?.id;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: isHover ? Border.all(color: Colors.blueAccent, width: 3) : null,
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+/// Folder Sheet
+class _FolderSheet extends StatelessWidget {
+  final BookmarkFolder folder;
+
+  const _FolderSheet({required this.folder});
+
+  static void show(BuildContext context, BookmarkFolder folder) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _FolderSheet(folder: folder),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Provider.of<BookmarkProvider>(context, listen: false);
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.folder, color: Colors.amber),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    folder.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${folder.children.length} bookmarks',
+                  style: TextStyle(color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(16),
+              shrinkWrap: true,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.85,
+              ),
+              itemCount: folder.children.length,
+              itemBuilder: (context, index) {
+                final bookmark = folder.children[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openBookmarkInFolder(context, bookmark);
+                  },
+                  onLongPress: () {
+                    Navigator.pop(context);
+                    _showBookmarkOptions(context, folder, bookmark);
+                  },
+                  child: _BookmarkCard(item: bookmark),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
+        ],
+      ),
+    );
+  }
+
+  void _openBookmarkInFolder(BuildContext context, SingleBookmark bookmark) async {
+    final controller = Provider.of<BookmarkProvider>(context, listen: false);
+
+    if (controller.useExternalBrowser) {
+      final uri = Uri.parse(bookmark.url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => _WebViewPage(bookmark: bookmark),
+        ),
+      );
+    }
+  }
+
+  void _showBookmarkOptions(BuildContext context, BookmarkFolder folder, SingleBookmark bookmark) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Remove from Folder', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmRemove(context, folder, bookmark);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmRemove(BuildContext context, BookmarkFolder folder, SingleBookmark bookmark) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Bookmark'),
+        content: Text('Remove "${bookmark.name}" from folder?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Provider.of<BookmarkProvider>(context, listen: false)
+                  .removeFromFolder(folder.id, bookmark.id);
+              Navigator.pop(context);
+            },
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// WebView Page
 class _WebViewPage extends StatefulWidget {
-  final BookmarkItem bookmark;
+  final SingleBookmark bookmark;
 
   const _WebViewPage({required this.bookmark});
 
