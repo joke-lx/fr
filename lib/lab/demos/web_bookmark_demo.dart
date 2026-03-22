@@ -516,6 +516,9 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
   OverlayEntry? _overlayEntry;
   final GlobalKey _cardKey = GlobalKey();
 
+  // 拖拽位置（用于更新 Overlay，不触发 rebuild）
+  Offset _overlayPosition = Offset.zero;
+
   // 动画控制器
   late AnimationController _floatController;
   late Animation<double> _scaleAnimation;
@@ -603,15 +606,17 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
     _overlayEntry = null;
   }
 
-  /// 进入拖动状态（移动超过阈值）
-  void _enterDraggingState() {
+  /// 进入拖动状态（移动到其他 item 位置触发布局变化）
+  void _enterDraggingState(int hoveredIndex) {
     if (_state != _TileState.floating) return;
 
     final controller = Provider.of<BookmarkProvider>(context, listen: false);
     controller.startDrag(widget.item);
+    controller.updateHoverIndex(hoveredIndex);
 
     setState(() {
       _state = _TileState.dragging;
+      _hoverIndex = hoveredIndex;
     });
 
     _editTimer?.cancel();
@@ -651,6 +656,7 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
       _startPosition = null;
       _dragOffset = null;
       _hoverIndex = null;
+      _overlayPosition = Offset.zero;
     });
 
     // 清除 provider 中的悬停状态
@@ -666,39 +672,40 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
     if (renderBox == null) return;
 
     final originalPosition = renderBox.localToGlobal(Offset.zero);
-    final currentPosition = details.globalPosition - (_dragOffset ?? Offset.zero);
 
-    setState(() {
-      _dragOffset = details.globalPosition - originalPosition;
-    });
+    // 更新拖拽偏移（用于保持位置同步）
+    _dragOffset = details.globalPosition - originalPosition;
 
-    // 更新 Overlay 位置
-    _updateOverlay(currentPosition);
+    // 计算新的 Overlay 位置（不触发 setState）
+    final newOverlayPosition = details.globalPosition - (_dragOffset ?? Offset.zero);
+    _overlayPosition = newOverlayPosition;
 
-    // 检查是否应该进入拖动状态
-    if (_state == _TileState.floating && _startPosition != null) {
-      final distance = (details.globalPosition - _startPosition!).distance;
-      if (distance > 15) {
-        _enterDraggingState();
+    // 更新 Overlay 位置 - 保持灵敏拖动（不触发 rebuild）
+    _updateOverlay(newOverlayPosition);
+
+    // floating 状态：检查是否移动到另一个 item 上（触发布局变化）
+    if (_state == _TileState.floating) {
+      final hoveredIndex = _findHoveredIndex(details.globalPosition);
+      // 只有移动到其他位置时才进入拖动状态（才触发 setState）
+      if (hoveredIndex != null && hoveredIndex != widget.originalIndex && _hoverIndex != hoveredIndex) {
+        _enterDraggingState(hoveredIndex);
       }
     }
 
-    // 如果在拖动状态，更新悬停位置
+    // dragging 状态：只在悬停位置变化时才更新
     if (_state == _TileState.dragging) {
-      _updateHoverPosition(details.globalPosition);
+      _updateHoverPositionIfNeeded(details.globalPosition);
     }
   }
 
-  /// 更新悬停位置
-  void _updateHoverPosition(Offset globalPosition) {
-    // 获取所有 item 的位置
+  /// 查找手指悬停的 item 索引
+  int? _findHoveredIndex(Offset globalPosition) {
     final controller = Provider.of<BookmarkProvider>(context, listen: false);
     final items = controller.displayItems;
 
     for (int i = 0; i < items.length; i++) {
       if (items[i].id == widget.item.id) continue;
 
-      // 通过 GlobalKey 获取位置
       final key = controller.getTileKey(items[i].id);
       final context = key.currentContext;
       if (context == null) continue;
@@ -714,22 +721,22 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
           globalPosition.dx <= position.dx + size.width &&
           globalPosition.dy >= position.dy &&
           globalPosition.dy <= position.dy + size.height) {
-        if (_hoverIndex != i) {
-          setState(() {
-            _hoverIndex = i;
-          });
-          controller.updateHoverIndex(i);
-        }
-        return;
+        return i;
       }
     }
+    return null;
+  }
 
-    // 没有在任何 item 上
-    if (_hoverIndex != null) {
+  /// 更新悬停位置（只在变化时触发 setState）
+  void _updateHoverPositionIfNeeded(Offset globalPosition) {
+    final newHoverIndex = _findHoveredIndex(globalPosition);
+
+    if (newHoverIndex != _hoverIndex) {
+      final controller = Provider.of<BookmarkProvider>(context, listen: false);
       setState(() {
-        _hoverIndex = null;
+        _hoverIndex = newHoverIndex;
       });
-      controller.updateHoverIndex(-1);
+      controller.updateHoverIndex(newHoverIndex ?? -1);
     }
   }
 
