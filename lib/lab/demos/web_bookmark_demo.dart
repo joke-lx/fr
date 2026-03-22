@@ -484,8 +484,7 @@ class _BookmarkGridView extends StatelessWidget {
 /// 瓦片状态枚举
 enum _TileState {
   normal,    // 正常状态
-  floating,  // 游动状态（长按后浮动，未移动）
-  dragging,  // 拖动状态（正在交换位置）
+  floating,  // 游动/拖动状态（长按后可以拖动）
 }
 
 /// 长按拖拽卡片组件 - 基于状态机的设计
@@ -548,7 +547,7 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
     super.dispose();
   }
 
-  /// 进入游动状态（长按触发）
+  /// 进入游动状态（长按触发）- 立即可以拖动
   void _enterFloatingState(LongPressStartDetails details) {
     if (_state != _TileState.normal) return;
 
@@ -563,6 +562,8 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
       _state = _TileState.floating;
       _startPosition = details.globalPosition;
       _dragOffset = details.globalPosition - position;
+      // 长按后立即可以拖动，标记为 dragging
+      _hoverIndex = widget.originalIndex;
     });
 
     _floatController.forward();
@@ -571,7 +572,7 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
     // 显示 Overlay 中的拖拽卡片
     _showOverlay(position, size);
 
-    // 启动2秒定时器
+    // 启动2秒定时器：如果没有发生位置交换，触发编辑
     _editTimer = Timer(const Duration(seconds: 2), () {
       if (mounted && _state == _TileState.floating) {
         _exitToEdit();
@@ -619,26 +620,9 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
     _overlayEntry = null;
   }
 
-  /// 进入拖动状态（移动到其他 item 位置触发布局变化）
-  void _enterDraggingState(int hoveredIndex) {
-    if (_state != _TileState.floating) return;
-
-    final controller = Provider.of<BookmarkProvider>(context, listen: false);
-    controller.startDrag(widget.item);
-    controller.updateHoverIndex(hoveredIndex);
-
-    setState(() {
-      _state = _TileState.dragging;
-      _hoverIndex = hoveredIndex;
-    });
-
-    _editTimer?.cancel();
-    HapticFeedback.mediumImpact();
-  }
-
   /// 退出拖动状态
   void _exitDragging() {
-    if (_state != _TileState.dragging) return;
+    if (_state != _TileState.floating) return;
 
     final controller = Provider.of<BookmarkProvider>(context, listen: false);
 
@@ -687,29 +671,18 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
 
     final originalPosition = renderBox.localToGlobal(Offset.zero);
 
-    // 更新拖拽偏移（用于保持位置同步）
+    // 更新拖拽偏移
     _dragOffset = details.globalPosition - originalPosition;
 
-    // 计算新的 Overlay 位置（不触发 setState）
+    // 计算新的 Overlay 位置
     final newOverlayPosition = details.globalPosition - (_dragOffset ?? Offset.zero);
     _overlayPosition = newOverlayPosition;
 
-    // 更新 Overlay 位置 - 保持灵敏拖动（不触发 rebuild）
+    // 更新 Overlay 位置
     _updateOverlay(newOverlayPosition);
 
-    // floating 状态：检查是否移动到另一个 item 上（触发布局变化）
-    if (_state == _TileState.floating) {
-      final hoveredIndex = _findHoveredIndex(details.globalPosition);
-      // 只有移动到其他位置时才进入拖动状态（才触发 setState）
-      if (hoveredIndex != null && hoveredIndex != widget.originalIndex && _hoverIndex != hoveredIndex) {
-        _enterDraggingState(hoveredIndex);
-      }
-    }
-
-    // dragging 状态：只在悬停位置变化时才更新
-    if (_state == _TileState.dragging) {
-      _updateHoverPositionIfNeeded(details.globalPosition);
-    }
+    // 实时更新悬停位置（用于检测位置交换）
+    _updateHoverPositionIfNeeded(details.globalPosition);
   }
 
   /// 查找手指悬停的 item 索引
@@ -1147,17 +1120,18 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile>
 
   /// 处理长按结束
   void _handleLongPressEnd() {
-    switch (_state) {
-      case _TileState.floating:
-        // 游动状态结束 → 2秒内没有移动，触发编辑
-        _exitToEdit();
-        break;
-      case _TileState.dragging:
-        // 拖动状态结束 → 提交重排
+    _editTimer?.cancel(); // 取消2秒定时器
+
+    if (_state == _TileState.floating) {
+      // 检查是否发生了位置交换
+      final didReorder = _hoverIndex != null && _hoverIndex != widget.originalIndex;
+      if (didReorder) {
+        // 发生了位置交换，提交重排
         _exitDragging();
-        break;
-      default:
-        break;
+      } else {
+        // 没有发生位置交换，触发编辑
+        _exitToEdit();
+      }
     }
   }
 
