@@ -15,6 +15,9 @@ class BookmarkProvider with ChangeNotifier {
   BookmarkItem? _draggingItem;
   int? _hoverIndex;
 
+  // Tile key 管理，用于位置计算
+  final Map<String, GlobalKey> _tileKeys = {};
+
   List<BookmarkItem> get items => _items;
   bool get useExternalBrowser => _useExternalBrowser;
   BookmarkItem? get draggingItem => _draggingItem;
@@ -278,5 +281,23 @@ class BookmarkProvider with ChangeNotifier {
 
   List<SingleBookmark> getSingleBookmarks() {
     return _items.whereType<SingleBookmark>().toList();
+  }
+
+  /// 注册 tile 的 GlobalKey
+  void registerTileKey(String itemId, GlobalKey key) {
+    _tileKeys[itemId] = key;
+  }
+
+  /// 获取 tile 的 GlobalKey
+  GlobalKey getTileKey(String itemId) {
+    if (!_tileKeys.containsKey(itemId)) {
+      _tileKeys[itemId] = GlobalKey();
+    }
+    return _tileKeys[itemId]!;
+  }
+
+  /// 清除所有 tile keys
+  void clearTileKeys() {
+    _tileKeys.clear();
   }
 }
