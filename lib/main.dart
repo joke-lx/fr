@@ -28,6 +28,7 @@ import 'lab/demos/water_capsule_demo.dart';
 import 'lab/demos/notification_demo.dart';
 import 'lab/providers/lab_note_provider.dart';
 import 'lab/providers/lab_clock_provider.dart';
+import 'providers/agent_chat_provider.dart';
 
 void main() {
   // 注册 Demo 页面
@@ -115,6 +116,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => LabNoteProvider()),
         ChangeNotifierProvider(create: (_) => LabClockProvider()),
         ChangeNotifierProvider(create: (_) => AIChatProvider()),
+        ChangeNotifierProvider(create: (_) => AgentChatProvider()),
         ChangeNotifierProxyProvider<UserProvider, ChatSessionProvider>(
           create: (_) => ChatSessionProvider(),
           update: (_, userProvider, sessionProvider) {

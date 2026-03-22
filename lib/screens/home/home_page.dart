@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../chat/ai_chat_page.dart';
+import '../chat/agent_chat_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -88,17 +89,29 @@ class _HomePageState extends State<HomePage> {
         // Mark as read
         await sessionProvider.markAsRead(session.id);
 
-        // Navigate to chat detail
+        // Show chat type selection dialog
         if (context.mounted && friend != null) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AIChatPage(title: 'AI 聊天'),
-            ),
-          );
-          // Refresh sessions when returning
-          if (context.mounted) {
-            await sessionProvider.refreshSessions(userProvider.currentUser!.id);
+          final choice = await _showChatTypeDialog(context);
+          if (context.mounted && choice != null) {
+            if (choice == 'ai') {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AIChatPage(title: 'AI 聊天'),
+                ),
+              );
+            } else {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AgentChatPage(title: 'Agent'),
+                ),
+              );
+            }
+            // Refresh sessions when returning
+            if (context.mounted) {
+              await sessionProvider.refreshSessions(userProvider.currentUser!.id);
+            }
           }
         }
       },
@@ -208,6 +221,44 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showChatTypeDialog(BuildContext context) async {
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('选择聊天方式'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Icon(
+                  Icons.smart_toy,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              title: const Text('AI 聊天'),
+              subtitle: const Text('通用对话助手'),
+              onTap: () => Navigator.pop(context, 'ai'),
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                child: Icon(
+                  Icons.assistant,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+              ),
+              title: const Text('Agent'),
+              subtitle: const Text('事件记录与分析'),
+              onTap: () => Navigator.pop(context, 'agent'),
             ),
           ],
         ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../chat/ai_chat_page.dart';
+import '../chat/agent_chat_page.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -238,14 +239,26 @@ class _FriendsPageState extends State<FriendsPage> {
             ListTile(
               leading: const Icon(Icons.chat),
               title: const Text('发消息'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AIChatPage(title: 'AI 聊天'),
-                  ),
-                );
+                final choice = await _showChatTypeDialog(context);
+                if (context.mounted && choice != null) {
+                  if (choice == 'ai') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AIChatPage(title: 'AI 聊天'),
+                      ),
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AgentChatPage(title: 'Agent'),
+                      ),
+                    );
+                  }
+                }
               },
             ),
             ListTile(
@@ -263,6 +276,44 @@ class _FriendsPageState extends State<FriendsPage> {
                 Navigator.pop(context);
                 _showDeleteFriendDialog(context, friend);
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showChatTypeDialog(BuildContext context) async {
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('选择聊天方式'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Icon(
+                  Icons.smart_toy,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              title: const Text('AI 聊天'),
+              subtitle: const Text('通用对话助手'),
+              onTap: () => Navigator.pop(context, 'ai'),
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                child: Icon(
+                  Icons.assistant,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+              ),
+              title: const Text('Agent'),
+              subtitle: const Text('事件记录与分析'),
+              onTap: () => Navigator.pop(context, 'agent'),
             ),
           ],
         ),
