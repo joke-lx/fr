@@ -500,8 +500,7 @@ class _LongPressDraggableTile extends StatefulWidget {
 
 class _LongPressDraggableTileState extends State<_LongPressDraggableTile> {
   Timer? _longPressTimer;
-  bool _hasDragStarted = false;
-  Offset? _startPosition;
+  bool _hasEnteredPreview = false;
 
   @override
   void dispose() {
@@ -510,36 +509,28 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile> {
   }
 
   void _onLongPressStart(LongPressStartDetails details) {
-    _startPosition = details.globalPosition;
-    _hasDragStarted = false;
-
-    // 启动2秒定时器
+    _hasEnteredPreview = false;
+    // 启动2秒定时器：如果2秒后没进入预览模式，触发编辑
     _longPressTimer = Timer(const Duration(seconds: 2), () {
-      if (mounted && !_hasDragStarted) {
-        // 2秒后没有拖动，弹出编辑框
+      if (mounted && !_hasEnteredPreview) {
         _showEditDialog();
       }
     });
   }
 
-  void _onDragUpdate(DragUpdateDetails details) {
-    // 检测是否真的发生了位置变化（拖动）
-    if (_startPosition != null) {
-      final currentPosition = details.globalPosition;
-      final distance = (currentPosition - _startPosition!).distance;
-      if (distance > 10) {
-        _hasDragStarted = true;
-        _longPressTimer?.cancel();
-      }
-    }
+  void _onDragStarted() {
+    // 进入预览模式（拖动预览出现），取消定时器
+    _hasEnteredPreview = true;
+    _longPressTimer?.cancel();
   }
 
   void _onDragEnd(DraggableDetails details) {
+    // 拖动结束：如果2秒内没进入预览模式，触发编辑
     _longPressTimer?.cancel();
-    if (!_hasDragStarted) {
-      // 没有真正拖动，可能是长按触发
-      // 但定时器会处理这个情况
+    if (!_hasEnteredPreview && mounted) {
+      _showEditDialog();
     }
+    _hasEnteredPreview = false;
   }
 
   void _showEditDialog() {
@@ -795,10 +786,10 @@ class _LongPressDraggableTileState extends State<_LongPressDraggableTile> {
       data: widget.item,
       delay: const Duration(milliseconds: 200),
       onDragStarted: () {
+        _onDragStarted();  // 标记进入预览模式
         controller.startDrag(widget.item);
         HapticFeedback.lightImpact();
       },
-      onDragUpdate: _onDragUpdate,
       onDragEnd: _onDragEnd,
       onDraggableCanceled: (_, __) {
         controller.cancelDrag();
