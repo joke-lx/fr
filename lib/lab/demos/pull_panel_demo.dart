@@ -243,19 +243,17 @@ class _PullPanelDemoPageState extends State<PullPanelDemoPage>
       await Future.delayed(const Duration(seconds: 2));
     } finally {
       _isRefreshing = false;
-      if (mounted) setState(() {}); // 先让 overlay 消失/physics 恢复
+      if (!mounted) return;
+      setState(() {}); // 先让 overlay 消失/physics 恢复
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+      // 1) 面板内容复位到顶部
+      if (_panelScrollController.hasClients) {
+        _panelScrollController.jumpTo(0.0);
+      }
 
-        // 1) 面板内容复位到顶部
-        if (_panelScrollController.hasClients) {
-          _panelScrollController.jumpTo(0.0);
-        }
-
-        // 2) 面板整体回弹收起
-        _animateTo(0.0);
-      });
+      // 2) 面板整体回弹收起
+      // 避免依赖 addPostFrameCallback（某些场景下会导致回弹不触发/延迟）。
+      _animateTo(0.0);
     }
   }
 
