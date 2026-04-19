@@ -39,8 +39,10 @@ api_spec.json
 /build/
 /coverage/
 
-# Test files (local API testing - never commit)
-test/
+# Test files
+# NOTE: This repo contains Flutter unit tests under test/.
+# Keep any local-only fixtures elsewhere if needed.
+# (Removed: test/)
 
 # Symbolication related
 app.*.symbols
